@@ -1,287 +1,290 @@
-# NVIDIA NemoClaw: Solana Pump-Fun Agent for OpenClaw + OpenShell
+# NemoClaw — Autonomous Solana Trading Agent
 
 <!-- start-badges -->
+[![npm version](https://img.shields.io/npm/v/@mawdbotsonsolana/nemoclaw.svg)](https://www.npmjs.com/package/@mawdbotsonsolana/nemoclaw)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue)](https://github.com/NVIDIA/NemoClaw/blob/main/LICENSE)
 [![Security Policy](https://img.shields.io/badge/Security-Report%20a%20Vulnerability-red)](https://github.com/NVIDIA/NemoClaw/blob/main/SECURITY.md)
 [![Project Status](https://img.shields.io/badge/status-alpha-orange)](https://github.com/NVIDIA/NemoClaw/blob/main/docs/about/release-notes.md)
 <!-- end-badges -->
 
-NVIDIA NemoClaw is an open source stack for running sandboxed [OpenClaw](https://openclaw.ai) assistants safely on top of [NVIDIA OpenShell](https://github.com/NVIDIA/OpenShell). In this repo it is wired as a **Solana Pump-Fun agent environment**: the sandbox bundles the Pump-Fun Telegram bot, natural-language Solana bridge, payment-gated app, DeFi agent personas, tokenized-agent payment skill, Helius-aware Solana tooling, and the Pump-Fun + PumpKit documentation corpus so the agent starts with local protocol context instead of a blank workspace.
+NemoClaw is an open source agent stack that turns an AI model into an **autonomous Solana trader** with its own encrypted wallet, natural-language Telegram narration, and the full Pump-Fun SDK — all running inside a sandboxed [OpenShell](https://github.com/NVIDIA/OpenShell) container where every network request, file access, and transaction is governed by policy.
 
-> **Alpha software**
-> 
-> NemoClaw is early-stage. Expect rough edges. We are building toward production-ready sandbox orchestration, but the starting point is getting your own environment up and running.
-> Interfaces, APIs, and behavior may change without notice as we iterate on the design.
-> The project is shared to gather feedback and enable early experimentation, but it
-> should not yet be considered production-ready.
-> We welcome issues and discussion from the community while the project evolves.
+**Three commands. That's it.**
+
+```bash
+npm install -g @mawdbotsonsolana/nemoclaw
+nemoclaw onboard          # pick your RPC, inference, and wallet
+nemoclaw solana start     # bridged Telegram bot + tracker + relay start up
+```
+
+> **Alpha software** — Interfaces, APIs, and behavior may change without notice.
+> We welcome issues and feedback while the project evolves.
+
+---
+
+## What You Get
+
+| Feature | Description |
+|---|---|
+| **Agentic Wallet** | Encrypted Privy server wallet — private keys never leave Privy. Spending policies enforced on-chain |
+| **Telegram Bridge** | Real-time natural-language narration of every trade, transfer, and program interaction |
+| **NemoClaw Vault** | Append-only JSONL audit trail for wallet events, trade activity, heartbeats, and stack sessions |
+| **Pump-Fun SDK** | Token creation, trading, claims, buybacks, payment-gated agents, and the full PumpKit monorepo |
+| **44 DeFi Personas** | Pre-loaded agent identities (yield farmer, risk engine, news analyst, tax strategist, etc.) |
+| **Solana Tooling** | `solana`, `solana-test-validator`, `spl-token`, `helius` installed in sandbox |
+| **Sandboxed Execution** | Landlock + seccomp + network namespace isolation via NVIDIA OpenShell |
+| **NVIDIA Inference** | Nemotron models via NVIDIA Cloud API, routed through the OpenShell gateway |
 
 ---
 
 ## Quick Start
 
-<!-- start-quickstart-guide -->
+### 1. Install
 
-Follow these steps to get started with NemoClaw as a sandboxed Solana/Pump-Fun agent.
-
-:::{note}
-NemoClaw currently requires a fresh installation of OpenClaw.
-:::
-
-### Prerequisites
-
-Check the prerequisites before you start to ensure you have the necessary software and hardware to run NemoClaw.
-
-#### Software
-
-- Linux Ubuntu 22.04 LTS releases and later
-- Node.js 20+ and npm 10+ (the installer recommends Node.js 22)
-- Docker installed and running
-- [NVIDIA OpenShell](https://github.com/NVIDIA/OpenShell) installed
-
-### Install NemoClaw and Onboard the Sandbox
-
-Download and run the installer script.
-The script installs Node.js if it is not already present, then runs the guided onboard wizard to create a sandbox, configure inference, and apply security policies. During onboarding, NemoClaw can now suggest `solana-rpc`, `pumpfun`, `telegram`, and `privy` presets when the relevant environment variables are present.
-
-```console
-$ curl -fsSL https://nvidia.com/nemoclaw.sh | bash
+```bash
+npm install -g @mawdbotsonsolana/nemoclaw
 ```
 
-When the install completes, a summary confirms the running environment:
+Requirements: Node.js 20+, Docker, Linux (Ubuntu 22.04+). macOS works for CLI management; sandbox runs in Docker.
 
-```
-──────────────────────────────────────────────────
-Sandbox      my-assistant (Landlock + seccomp + netns)
-Model        nvidia/nemotron-3-super-120b-a12b (NVIDIA Cloud API)
-──────────────────────────────────────────────────
-Run:         nemoclaw my-assistant connect
-Status:      nemoclaw my-assistant status
-Logs:        nemoclaw my-assistant logs --follow
-──────────────────────────────────────────────────
+### 2. Onboard
 
-[INFO]  === Installation complete ===
+```bash
+nemoclaw onboard
 ```
 
-### Run the Solana Services
+The interactive wizard walks through 9 steps:
 
-Use the one-shot startup command after onboarding:
+1. **Preflight** — Docker, OpenShell, GPU detection
+2. **Gateway** — Start the OpenShell gateway
+3. **Sandbox** — Build the Docker image (Solana CLI, Pump-Fun SDK, DeFi personas)
+4. **Inference model** — Pick NIM / NVIDIA Cloud / Ollama / vLLM
+5. **Provider setup** — Configure the inference endpoint
+6. **OpenClaw** — Install the agent framework in the sandbox
+7. **Solana & Wallet** — RPC URL, Privy agentic wallet, Pump-Fun token config
+8. **Test validator** — Optional local validator with cloned Pump programs
+9. **Policies** — Auto-detect and apply `solana-rpc`, `pumpfun`, `privy`, `telegram`
 
-```console
-$ nemoclaw solana start my-assistant
+### 3. Set Environment Variables
+
+```bash
+export HELIUS_API_KEY=<your-helius-key>
+export SOLANA_RPC_URL=https://mainnet.helius-rpc.com/?api-key=$HELIUS_API_KEY
+export TELEGRAM_BOT_TOKEN=<botfather-token>
+export TELEGRAM_NOTIFY_CHAT_IDS=<comma-separated-chat-ids>
+export AGENT_TOKEN_MINT_ADDRESS=<pump-token-mint>
+export DEVELOPER_WALLET=<developer-wallet>
+export HEARTBEAT_SECONDS=60
+export MIN_WALLET_SOL=0.01
+export STOP_BALANCE_SOL=0.002
 ```
 
-That command starts the bundled Solana operator stack inside the sandbox:
+### 4. Start Everything
 
-- Pump-Fun Telegram bot + API
-- Natural-language Solana wallet bridge
-- Realtime websocket relay
-- Optional payment app / swarm bot if enabled via env flags
-
-Set the Solana/Pump-Fun runtime variables on the host:
-
-```console
-$ export HELIUS_API_KEY=<helius-key>
-$ export SOLANA_RPC_URL=https://mainnet.helius-rpc.com/?api-key=$HELIUS_API_KEY
-$ export AGENT_TOKEN_MINT_ADDRESS=<pump-token-mint>
-$ export DEVELOPER_WALLET=<developer-wallet>
-$ export TELEGRAM_BOT_TOKEN=<botfather-token>
-$ export TELEGRAM_NOTIFY_CHAT_IDS=<optional-comma-separated-chat-ids>
+```bash
+nemoclaw solana start
 ```
 
-Start the bundled Pump-Fun tracker bot inside the sandbox:
+One command starts the full Solana operator stack inside the sandbox:
 
-```console
-$ nemoclaw my-assistant solana-agent
+- ✅ Pump-Fun Telegram monitor bot + REST API
+- ✅ Natural-language wallet narration bridge
+- ✅ Realtime WebSocket relay
+- ✅ Continuous wallet heartbeat with funded/protect-mode state
+- ✅ Append-only vault logs under `~/.nemoclaw/vault`
+- ✅ Optional payment app and swarm bot
+
+---
+
+## Standalone Commands
+
+Each service can also be started individually:
+
+### Create a Wallet
+
+```bash
+nemoclaw wallet create    # Create encrypted Privy agentic wallet
+nemoclaw wallet list      # List all wallets
+nemoclaw wallet status    # Show wallet + Privy configuration
 ```
 
-The command launches the bot from [`Pump-Fun/agent-app`](./Pump-Fun/agent-app) inside the sandbox and passes the host-side Solana environment through to the process.
+### Solana Quick Start
 
-Run the Pump-Fun Telegram bot + API inside the sandbox:
-
-```console
-$ nemoclaw my-assistant telegram-bot
+```bash
+nemoclaw solana           # Show Solana status + all available commands
+nemoclaw solana start     # One-shot: bridge + telegram-bot + relay
 ```
 
-Run the natural-language wallet narration bridge:
+### Individual Services
 
-```console
-$ nemoclaw my-assistant solana-bridge
+```bash
+nemoclaw <name> connect          # Open sandbox shell
+nemoclaw <name> solana-agent     # Pump-Fun tracker bot (payments, claims, buybacks)
+nemoclaw <name> solana-bridge    # Natural-language Telegram wallet narration
+nemoclaw <name> telegram-bot     # Telegram monitor + REST API
+nemoclaw <name> payment-app      # Payment-gated Pump-Fun agent
+nemoclaw <name> swarm-bot        # Pump-Fun swarm dashboard
+nemoclaw <name> websocket-server # Pump-Fun realtime launch relay
+nemoclaw <name> solana-stack     # Start bridge + bot + relay together
 ```
 
-Start the whole Solana stack inside the sandbox without the global helper:
+### Management
 
-```console
-$ nemoclaw my-assistant solana-stack
+```bash
+nemoclaw <name> status           # Sandbox + Solana + wallet health
+nemoclaw <name> logs --follow    # Stream sandbox logs
+nemoclaw <name> policy-add       # Add network policy preset
+nemoclaw <name> policy-list      # List applied presets
+nemoclaw <name> destroy          # Stop NIM + delete sandbox
+nemoclaw deploy <instance>       # Deploy to a Brev GPU VM
 ```
 
-Run the payment-gated agent app:
+---
 
-```console
-$ nemoclaw my-assistant payment-app
-```
+## Telegram Bot Commands
 
-Optional companion services:
+When the Solana bridge is running, interact with it via Telegram:
 
-```console
-$ nemoclaw my-assistant swarm-bot
-$ nemoclaw my-assistant websocket-server
-```
+| Command | Description |
+|---|---|
+| `/start` | Welcome + capabilities |
+| `/balance` | SOL balance + token holdings |
+| `/holdings` | Detailed token positions |
+| `/status` | Bridge uptime, tx count, RPC provider |
+| `/wallet` | Wallet address |
+| `/rpc` | Current RPC endpoint and provider |
+| `/lasttrade` | Most recent narrated trade |
 
-### Chat with the Agent
-
-Connect to the sandbox, then chat with the agent through the TUI or the CLI.
-
-```console
-$ nemoclaw my-assistant connect
-```
-
-#### OpenClaw TUI
-
-The OpenClaw TUI opens an interactive chat interface. Type a message and press Enter to send it to the agent:
-
-```console
-sandbox@my-assistant:~$ openclaw tui
-```
-
-Send a test message to the agent and verify you receive a response.
-
-#### OpenClaw CLI
-
-Use the OpenClaw CLI to send a single message and print the response:
-
-```console
-sandbox@my-assistant:~$ openclaw agent --agent main --local -m "hello" --session-id test
-```
-
-### Pump-Fun Knowledge Workspace
-
-Inside the sandbox, OpenClaw's workspace is preloaded with the Pump-Fun corpus:
-
-- `~/.openclaw/workspace/AGENTS.md` injects Pump-Fun/Solana instructions into every session
-- `~/.openclaw/workspace/pumpfun/docs` contains the bundled documentation set
-- `~/.openclaw/workspace/pumpfun/telegram-bot` contains the primary Pump-Fun Telegram bot runtime
-- `~/.openclaw/workspace/pumpfun/pumpkit` contains the PumpKit packages, tutorials, prompts, and docs
-- `~/.openclaw/workspace/pumpfun/agent-app` contains the tracker bot code
-- `~/.openclaw/workspace/pumpfun/defi-agents` contains the raw DeFi agent persona library
-- `~/.openclaw/workspace/pumpfun/tokenized-agents-skill` contains the payment skill guide
-- `~/.openclaw/workspace/pumpfun/x402` contains the Solana HTTP 402 payment protocol implementation
-- `~/.openclaw/workspace/pumpfun/swarm-bot` and `~/.openclaw/workspace/pumpfun/websocket-server` contain realtime service companions
-- `~/.openclaw/workspace/pumpfun/agent-prompts` contains PumpKit build prompts
-- `~/.openclaw/workspace/pumpfun/agent-tasks` contains task specs and deliverable prompts
-
-This means the agent can inspect the local Pump-Fun docs, official docs, personas, payment patterns, prompts, and implementation code without fetching them externally.
-
-<!-- end-quickstart-guide -->
+The bridge automatically narrates:
+- 🟢 **Buy** — "Our agent wallet just spent **0.05 SOL** to buy a token"
+- 🔴 **Sell** — "Our agent wallet just sold tokens and realized **0.12 SOL**"
+- 💰 **Incoming** — "The wallet received **1.5 SOL** from `4xKp...9nZe`"
+- 📤 **Outgoing** — "The wallet sent **0.01 SOL** to `7bRq...2mXf`"
+- ⚡ **Program** — "The wallet executed an on-chain program interaction"
 
 ---
 
 ## How It Works
 
-NemoClaw installs the NVIDIA OpenShell runtime and Nemotron models, then uses a versioned blueprint to create a sandboxed environment where every network request, file access, and inference call is governed by declarative policy. In this repo, the sandbox also ships the Pump-Fun code and docs corpus so the `nemoclaw` CLI can orchestrate both the OpenShell runtime and a Solana-specific agent workspace.
+```
+┌─────────────────────────────────────────────────────────┐
+│  nemoclaw CLI (host)                                     │
+│                                                          │
+│  nemoclaw onboard → builds sandbox image                │
+│  nemoclaw solana start → injects env → starts services  │
+│  nemoclaw wallet create → Privy API → encrypted wallet  │
+│                                                          │
+├─────────────────────────────────────────────────────────┤
+│  OpenShell Gateway (network policy enforcement)          │
+├─────────────────────────────────────────────────────────┤
+│  Sandbox (Landlock + seccomp + netns)                    │
+│                                                          │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  │
+│  │ Telegram Bot  │  │ Solana Bridge│  │ WS Relay     │  │
+│  │ (monitor)     │  │ (narration)  │  │ (launches)   │  │
+│  └──────────────┘  └──────────────┘  └──────────────┘  │
+│                                                          │
+│  OpenClaw Agent                                          │
+│  ├── NVIDIA Nemotron (inference via gateway)             │
+│  ├── Privy Wallet Skill (sign, send, policy)            │
+│  ├── Pump-Fun SDK (@nirholas/pump-sdk)                   │
+│  ├── 44 DeFi Agent Personas                              │
+│  └── Solana CLI (solana, spl-token, helius)              │
+└─────────────────────────────────────────────────────────┘
+```
 
-| Component        | Role                                                                                      |
-|------------------|-------------------------------------------------------------------------------------------|
-| **Plugin**       | TypeScript CLI commands for launch, connect, status, and logs.                            |
-| **Blueprint**    | Versioned Python artifact that orchestrates sandbox creation, policy, and inference setup. |
-| **Sandbox**      | Isolated OpenShell container running OpenClaw, the Pump-Fun Telegram bot/app stack, and a local Pump-Fun knowledge workspace. |
-| **Inference**    | NVIDIA cloud model calls, routed through the OpenShell gateway, transparent to the agent.  |
+| Component | Role |
+|---|---|
+| **Plugin** | TypeScript CLI for launch, connect, status, logs |
+| **Blueprint** | Python artifact that orchestrates sandbox, policy, inference |
+| **Sandbox** | Isolated container running OpenClaw + Solana services |
+| **Inference** | Model calls routed through OpenShell gateway |
+| **Privy** | Server wallet management — private keys never stored locally |
 
-The blueprint lifecycle follows four stages: resolve the artifact, verify its digest, plan the resources, and apply through the OpenShell CLI.
+---
 
-When something goes wrong, errors may originate from either NemoClaw or the OpenShell layer underneath. Run `nemoclaw <name> status` for NemoClaw-level health and `openshell sandbox list` to check the underlying sandbox state.
+## Security & Protection
+
+| Layer | What it protects | When |
+|---|---|---|
+| **Network** | Blocks unauthorized outbound connections | Hot-reloadable |
+| **Filesystem** | Prevents reads/writes outside `/sandbox` and `/tmp` | At creation |
+| **Process** | Blocks privilege escalation and dangerous syscalls | At creation |
+| **Inference** | Routes model calls to controlled backends | Hot-reloadable |
+| **Wallet** | Private keys managed by Privy, never in sandbox | Always |
+| **Credentials** | `~/.nemoclaw/` with mode 600, `.gitignore` protected | Always |
+| **Pre-commit** | Hook blocks commits containing API keys or tokens | On commit |
+
+### Network Policy Presets
+
+| Preset | What it allows |
+|---|---|
+| `solana-rpc` | Solana mainnet, devnet, testnet, Helius, Alchemy, QuikNode |
+| `pumpfun` | pump.fun APIs, Jupiter aggregator, DexScreener |
+| `privy` | Privy auth + policy + wallet APIs |
+| `telegram` | Telegram Bot API |
+| `pypi` | Python package index |
+| `npm` | npm registry |
+
+---
+
+## Knowledge Workspace
+
+Inside the sandbox, the agent has local access to:
+
+```
+~/.openclaw/workspace/
+├── AGENTS.md                    # Agent identity + Solana instructions
+├── skills/privy/SKILL.md        # Privy wallet skill
+└── pumpfun/
+    ├── docs/                    # Protocol + SDK documentation
+    ├── agent-app/               # Tracker bot code
+    ├── telegram-bot/            # Telegram monitor runtime
+    ├── pumpkit/                 # PumpKit packages + tutorials
+    ├── defi-agents/             # 44 DeFi persona JSONs
+    ├── tokenized-agents-skill/  # Payment skill guide
+    ├── x402/                    # HTTP 402 payment protocol
+    ├── swarm-bot/               # Multi-bot orchestration
+    ├── websocket-server/        # Realtime launch relay
+    ├── agent-prompts/           # PumpKit build prompts
+    └── agent-tasks/             # Task specs + deliverables
+```
+
+No external fetching needed — the agent works with local protocol context.
 
 ---
 
 ## Inference
 
-Inference requests from the agent never leave the sandbox directly. OpenShell intercepts every call and routes it to the NVIDIA cloud provider.
+| Provider | Model | Use Case |
+|---|---|---|
+| NVIDIA Cloud | `nvidia/nemotron-3-super-120b-a12b` | Production (requires API key) |
 
-| Provider     | Model                               | Use Case                                       |
-|--------------|--------------------------------------|-------------------------------------------------|
-| NVIDIA cloud | `nvidia/nemotron-3-super-120b-a12b` | Production. Requires an NVIDIA API key.         |
-
-Get an API key from [build.nvidia.com](https://build.nvidia.com). The `nemoclaw onboard` command prompts for this key during setup.
-
----
-
-## Protection Layers
-
-The sandbox starts with a strict baseline policy that controls network egress and filesystem access:
-
-| Layer      | What it protects                                    | When it applies             |
-|------------|-----------------------------------------------------|-----------------------------|
-| Network    | Blocks unauthorized outbound connections.           | Hot-reloadable at runtime.  |
-| Filesystem | Prevents reads/writes outside `/sandbox` and `/tmp`.| Locked at sandbox creation. |
-| Process    | Blocks privilege escalation and dangerous syscalls. | Locked at sandbox creation. |
-| Inference  | Reroutes model API calls to controlled backends.    | Hot-reloadable at runtime.  |
-
-When the agent tries to reach an unlisted host, OpenShell blocks the request and surfaces it in the TUI for operator approval.
-
----
-
-## Key Commands
-
-### Host commands (`nemoclaw`)
-
-Run these on the host to set up, connect to, and manage sandboxes.
-
-| Command                              | Description                                            |
-|--------------------------------------|--------------------------------------------------------|
-| `nemoclaw onboard`                  | Interactive setup wizard: gateway, providers, sandbox. |
-| `nemoclaw deploy <instance>`         | Deploy to a remote GPU instance through Brev.          |
-| `nemoclaw <name> connect`            | Open an interactive shell inside the sandbox.          |
-| `nemoclaw solana start [sandbox]`    | One-shot startup for the Solana stack. |
-| `nemoclaw <name> solana-stack`       | Start the bridge, Telegram bot, and relay together inside the sandbox. |
-| `nemoclaw <name> solana-agent`       | Run the bundled Pump-Fun tracker bot inside the sandbox. |
-| `nemoclaw <name> solana-bridge`      | Narrate wallet activity and Solana trades in Telegram in natural language. |
-| `nemoclaw <name> telegram-bot`       | Run the Pump-Fun Telegram bot and REST API inside the sandbox. |
-| `nemoclaw <name> payment-app`        | Run the payment-gated Pump-Fun agent app inside the sandbox. |
-| `nemoclaw <name> swarm-bot`          | Run the Pump-Fun swarm dashboard inside the sandbox. |
-| `nemoclaw <name> websocket-server`   | Run the Pump-Fun realtime relay server inside the sandbox. |
-| `openshell term`                     | Launch the OpenShell TUI for monitoring and approvals. |
-| `nemoclaw start` / `stop` / `status` | Manage auxiliary services (Telegram bridge, tunnel).   |
-
-### Plugin commands (`openclaw nemoclaw`)
-
-Run these inside the OpenClaw CLI. These commands are under active development and may not all be functional yet.
-
-| Command                                    | Description                                              |
-|--------------------------------------------|----------------------------------------------------------|
-| `openclaw nemoclaw launch [--profile ...]` | Bootstrap OpenClaw inside an OpenShell sandbox.          |
-| `openclaw nemoclaw status`                 | Show sandbox health, blueprint state, and inference.     |
-| `openclaw nemoclaw logs [-f]`              | Stream blueprint execution and sandbox logs.             |
-
-See the full [CLI reference](https://docs.nvidia.com/nemoclaw/latest/reference/commands.md) for all commands, flags, and options.
-
-> **Known limitations:**
-> - The `openclaw nemoclaw` plugin commands are under active development. Use the `nemoclaw` host CLI as the primary interface.
-> - Setup may require manual workarounds on some platforms. File an issue if you encounter blockers.
+Get an API key from [build.nvidia.com](https://build.nvidia.com).
 
 ---
 
 ## Learn More
 
-Refer to the documentation for more information on NemoClaw and the bundled Pump-Fun stack.
+**Bundled Stack:**
+- [Pump-Fun Telegram bot](./Pump-Fun/telegram-bot) — monitoring, alerts, REST API
+- [PumpKit monorepo](./Pump-Fun/pumpkit) — reusable packages, tutorials, web dashboard
+- [Pump-Fun agent app](./Pump-Fun/agent-app) — tracker bot, payment-gated app
+- [DeFi agent personas](./Pump-Fun/packages/defi-agents) — 44 personas with locales
+- [Tokenized agent skill](./pump-fun-skills-main/tokenized-agents) — payment/invoice implementation
+- [Pump-Fun x402](./Pump-Fun/x402) — HTTP 402 micropayment protocol for Solana
+- [Pump-Fun swarm bot](./Pump-Fun/swarm-bot) — dashboard + multi-bot orchestration
+- [WebSocket server](./Pump-Fun/websocket-server) — realtime launch relay
+- [Protocol docs](./Pump-Fun/docs) — SDK, deployment, architecture
+- [PumpKit prompts](./Pump-Fun/pumpkit/agent-prompts) — build prompts for extending the agent
+- [Agent tasks](./Pump-Fun/agent-tasks) — scoped task prompts and deliverables
 
-- [Pump-Fun Telegram bot](./Pump-Fun/telegram-bot): monitoring bot, alerts, and REST API
-- [PumpKit monorepo](./Pump-Fun/pumpkit): reusable packages, tutorials, prompts, and web dashboard
-- [Pump-Fun app code](./Pump-Fun/agent-app): Solana tracker bot and payment-gated app
-- [DeFi agent personas](./Pump-Fun/packages/defi-agents): raw JSON personas and manifests
-- [Tokenized agent payment skill](./pump-fun-skills-main/tokenized-agents): payment/invoice implementation guide
-- [Pump-Fun x402](./Pump-Fun/x402): HTTP 402-style micropayment protocol for Solana
-- [Pump-Fun swarm bot](./Pump-Fun/swarm-bot): dashboard and multi-bot orchestration
-- [Pump-Fun websocket server](./Pump-Fun/websocket-server): realtime launch relay
-- [Pump-Fun docs](./Pump-Fun/docs): local protocol, SDK, deployment, and architecture docs
-- [PumpKit agent prompts](./Pump-Fun/pumpkit/agent-prompts): build prompts for extending the agent
-- [Pump-Fun agent tasks](./Pump-Fun/agent-tasks): scoped task prompts and deliverables
+**NVIDIA Docs:**
+- [CLI Commands Reference](./docs/reference/commands.md)
+- [Inference Profiles](./docs/reference/inference-profiles.md)
+- [Network Policies](./docs/reference/network-policies.md)
 
-- [Overview](https://docs.nvidia.com/nemoclaw/latest/about/overview.html): what NemoClaw does and how it fits together
-- [How It Works](https://docs.nvidia.com/nemoclaw/latest/about/how-it-works.html): plugin, blueprint, and sandbox lifecycle
-- [Architecture](https://docs.nvidia.com/nemoclaw/latest/reference/architecture.html): plugin structure, blueprint lifecycle, and sandbox environment
-- [Inference Profiles](https://docs.nvidia.com/nemoclaw/latest/reference/inference-profiles.html): NVIDIA cloud inference configuration
-- [Network Policies](https://docs.nvidia.com/nemoclaw/latest/reference/network-policies.html): egress control and policy customization
-- [CLI Commands](https://docs.nvidia.com/nemoclaw/latest/reference/commands.html): full command reference
+---
 
 ## License
 

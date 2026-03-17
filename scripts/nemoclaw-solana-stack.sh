@@ -11,14 +11,24 @@ set -euo pipefail
 SERVICES_DIR="${HOME:-/sandbox}/.nemoclaw/services"
 LOG_DIR="${SERVICES_DIR}/logs"
 PID_DIR="${SERVICES_DIR}/pids"
+VAULT_DIR="${NEMOCLAW_VAULT_DIR:-${HOME:-/sandbox}/.nemoclaw/vault}"
+STACK_DAY="$(date -u +%F)"
+STACK_LOG="${VAULT_DIR}/stack-${STACK_DAY}.log"
 
-mkdir -p "${LOG_DIR}" "${PID_DIR}"
+mkdir -p "${LOG_DIR}" "${PID_DIR}" "${VAULT_DIR}"
 
 START_TELEGRAM_BOT="${START_TELEGRAM_BOT:-true}"
 START_SOLANA_BRIDGE="${START_SOLANA_BRIDGE:-true}"
 START_WEBSOCKET_SERVER="${START_WEBSOCKET_SERVER:-true}"
 START_PAYMENT_APP="${START_PAYMENT_APP:-false}"
 START_SWARM_BOT="${START_SWARM_BOT:-false}"
+HEARTBEAT_SECONDS="${HEARTBEAT_SECONDS:-60}"
+MIN_WALLET_SOL="${MIN_WALLET_SOL:-0.01}"
+STOP_BALANCE_SOL="${STOP_BALANCE_SOL:-0.002}"
+
+append_stack_log() {
+  printf '%s %s\n' "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" "$1" >> "${STACK_LOG}"
+}
 
 require_env() {
   local key="$1"
@@ -57,6 +67,7 @@ start_service() {
   echo "${pid}" > "${pid_file}"
   echo "[solana-stack] ${name} started (pid ${pid})"
   echo "[solana-stack] log: ${log_file}"
+  append_stack_log "service=${name} pid=${pid} log=${log_file} status=started"
 }
 
 if [ "${START_TELEGRAM_BOT}" = "true" ] || [ "${START_SOLANA_BRIDGE}" = "true" ]; then
@@ -69,12 +80,16 @@ echo "[solana-stack] RPC: ${SOLANA_RPC_URL:-https://rpc.solanatracker.io/public}
 echo "[solana-stack] WS:  ${SOLANA_WS_URL:-auto}"
 echo "[solana-stack] Wallet: ${DEVELOPER_WALLET:-not-configured}"
 echo "[solana-stack] Mint: ${AGENT_TOKEN_MINT_ADDRESS:-not-configured}"
+echo "[solana-stack] Vault: ${VAULT_DIR}"
+echo "[solana-stack] Heartbeat: ${HEARTBEAT_SECONDS}s"
 if [ -n "${HELIUS_API_KEY:-}" ]; then
   echo "[solana-stack] Helius: configured"
 else
   echo "[solana-stack] Helius: not-configured"
 fi
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+append_stack_log "stack_started rpc=${SOLANA_RPC_URL:-https://rpc.solanatracker.io/public} wallet=${DEVELOPER_WALLET:-not-configured} mint=${AGENT_TOKEN_MINT_ADDRESS:-not-configured} vault=${VAULT_DIR} heartbeat=${HEARTBEAT_SECONDS}s min_wallet_sol=${MIN_WALLET_SOL} stop_balance_sol=${STOP_BALANCE_SOL}"
 
 if [ "${START_TELEGRAM_BOT}" = "true" ]; then
   start_service "telegram-bot" "nemoclaw-telegram-bot"
@@ -107,3 +122,4 @@ for pid_file in "${PID_DIR}"/*.pid; do
 done
 echo ""
 echo "[solana-stack] One-shot startup complete."
+append_stack_log "stack_ready"

@@ -55,6 +55,9 @@ secrets.json
 helius.json
 rpc-config.json
 
+# npm auth token (NEVER commit)
+.npmrc
+
 # ── Build artifacts ───────────────────────────────────────────────
 *.tgz
 *.tar.gz

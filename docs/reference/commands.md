@@ -123,8 +123,23 @@ This launches the bundled Solana operator stack inside the sandbox:
 - Pump-Fun Telegram bot + API
 - natural-language Solana wallet bridge
 - realtime websocket relay
+- wallet heartbeat and vault logging
 
 If no sandbox exists yet, NemoClaw runs `onboard` first and then starts the stack.
+
+#### `nemoclaw wallet [create|list|status]`
+
+Manage the Privy-backed Solana wallet used by the agent.
+
+```console
+$ nemoclaw wallet create
+$ nemoclaw wallet list
+$ nemoclaw wallet status
+```
+
+`create` provisions a Privy-managed Solana wallet and can optionally create a default
+spending policy. `list` shows locally known wallet records, and `status` prints the
+current Privy, wallet, and RPC configuration.
 
 ### Sandbox Management
 
@@ -172,6 +187,7 @@ $ nemoclaw my-assistant solana-stack
 ```
 
 This is the sandbox-scoped equivalent of `nemoclaw solana start`.
+The stack writes service and runtime records to `~/.nemoclaw/vault/`.
 
 #### `nemoclaw <name> solana-agent`
 
@@ -204,9 +220,9 @@ $ nemoclaw my-assistant solana-bridge
 ```
 
 **Required env:** `TELEGRAM_BOT_TOKEN`
-**Optional env:** `SOLANA_RPC_URL`, `SOLANA_WS_URL`, `HELIUS_API_KEY`, `DEVELOPER_WALLET`, `AGENT_TOKEN_MINT_ADDRESS`, `TELEGRAM_NOTIFY_CHAT_IDS`, `PRIVY_APP_ID`
+**Optional env:** `SOLANA_RPC_URL`, `SOLANA_WS_URL`, `HELIUS_API_KEY`, `DEVELOPER_WALLET`, `AGENT_TOKEN_MINT_ADDRESS`, `TELEGRAM_NOTIFY_CHAT_IDS`, `PRIVY_APP_ID`, `NEMOCLAW_VAULT_DIR`, `HEARTBEAT_SECONDS`, `MIN_WALLET_SOL`, `STOP_BALANCE_SOL`
 
-The bridge is broadcast-oriented and is designed to coexist with the main Pump-Fun Telegram bot without polling conflicts. It pushes narrated wallet activity to `TELEGRAM_NOTIFY_CHAT_IDS` while the primary bot continues handling interactive commands.
+The bridge is broadcast-oriented and is designed to coexist with the main Pump-Fun Telegram bot without polling conflicts. It pushes narrated wallet activity to `TELEGRAM_NOTIFY_CHAT_IDS`, records heartbeat snapshots and wallet activity to the NemoClaw vault, and marks funded or protection state from wallet balance thresholds while the primary bot continues handling interactive commands.
 
 #### `nemoclaw <name> telegram-bot`
 

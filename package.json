@@ -1,8 +1,22 @@
 {
-  "name": "nemoclaw",
-  "version": "0.1.0",
-  "description": "NemoClaw — run OpenClaw inside OpenShell with NVIDIA inference",
+  "name": "@mawdbotsonsolana/nemoclaw",
+  "version": "0.2.0",
+  "description": "NemoClaw — autonomous Solana trading agent with Pump-Fun SDK, Privy agentic wallets, and natural-language Telegram bridge. One command to deploy.",
   "license": "Apache-2.0",
+  "keywords": [
+    "solana",
+    "pump-fun",
+    "trading-bot",
+    "telegram-bot",
+    "agentic-wallet",
+    "privy",
+    "openclaw",
+    "openshell",
+    "nvidia",
+    "ai-agent",
+    "defi",
+    "autonomous-agent"
+  ],
   "bin": {
     "nemoclaw": "./bin/nemoclaw.js"
   },
@@ -27,6 +41,7 @@
     "Pump-Fun/packages/defi-agents/",
     "Pump-Fun/pumpkit/",
     "Pump-Fun/pumpkit/agent-prompts/",
+    "Pump-Fun/pumpkit/tutorials/",
     "Pump-Fun/telegram-bot/",
     "Pump-Fun/swarm-bot/",
     "Pump-Fun/websocket-server/",
@@ -37,6 +52,10 @@
     "Dockerfile",
     ".dockerignore"
   ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "engines": {
     "node": ">=20.0.0"
   },

@@ -23,7 +23,7 @@ const solana = require("./lib/solana");
 
 const GLOBAL_COMMANDS = new Set([
   "onboard", "list", "deploy", "setup", "setup-spark",
-  "start", "stop", "status", "solana",
+  "start", "stop", "status", "solana", "wallet",
   "help", "--help", "-h",
 ]);
 
@@ -560,56 +560,152 @@ function sandboxSolanaBridge(sandboxName) {
   runSandboxScript(sandboxName, envValues, "nemoclaw-solana-bridge");
 }
 
+// ── Wallet Management ────────────────────────────────────────────
+
+async function walletCommand(actionArgs = []) {
+  const { prompt: askPrompt } = require("./lib/credentials");
+  const sub = actionArgs[0] || "status";
+
+  switch (sub) {
+    case "create": {
+      console.log("");
+      console.log("  🔐 Create Agentic Wallet (Privy)");
+      console.log("  ═════════════════════════════════");
+
+      let privyConfig = solana.loadPrivyConfig();
+      if (!privyConfig || !privyConfig.appId) {
+        console.log("  Get credentials from: https://dashboard.privy.io");
+        const appId = await askPrompt("  Privy App ID: ");
+        const appSecret = await askPrompt("  Privy App Secret: ");
+        if (!appId || !appSecret) {
+          console.error("  Privy credentials required.");
+          process.exit(1);
+        }
+        privyConfig = {
+          appId: appId.trim(),
+          appSecret: appSecret.trim(),
+          configuredAt: new Date().toISOString(),
+        };
+        solana.savePrivyConfig(privyConfig);
+        console.log("  ✓ Privy credentials saved");
+      } else {
+        console.log(`  Using existing Privy config (app: ${privyConfig.appId.substring(0, 12)}...)`);
+      }
+
+      console.log("  Creating Solana wallet via Privy...");
+      const wallet = await solana.createPrivyWallet({ chainType: "solana" });
+      if (wallet) {
+        console.log(`  ✓ Wallet created: ${wallet.address}`);
+        console.log("  ⓘ Private keys managed by Privy — never stored locally.");
+
+        const wantPolicy = await askPrompt("  Create spending policy (0.1 SOL/tx limit)? [Y/n]: ");
+        if (wantPolicy.toLowerCase() !== "n") {
+          const policy = await solana.createPrivyPolicy({
+            name: "NemoClaw Default",
+            maxLamports: 100_000_000,
+          });
+          if (policy) {
+            console.log(`  ✓ Policy created: ${policy.name || policy.id}`);
+          }
+        }
+      }
+      console.log("");
+      break;
+    }
+
+    case "list": {
+      const wallets = solana.listWallets();
+      console.log("");
+      if (wallets.length === 0) {
+        console.log("  No wallets found. Run: nemoclaw wallet create");
+      } else {
+        console.log("  Agentic Wallets:");
+        wallets.forEach((w, i) => {
+          const marker = i === 0 ? " (default)" : "";
+          console.log(`    ${i + 1}. ${w.address} [${w.chainType}]${marker}`);
+          console.log(`       ID: ${w.walletId}  Created: ${w.createdAt}`);
+        });
+      }
+      console.log("");
+      break;
+    }
+
+    case "status":
+    default: {
+      const wallet = solana.getDefaultWallet();
+      const privyConfig = solana.loadPrivyConfig();
+      const solConfig = solana.loadSolanaConfig();
+      const allWallets = solana.listWallets();
+
+      console.log("");
+      console.log("  🔐 Wallet Status");
+      console.log("  ════════════════");
+      console.log(`  Privy:    ${privyConfig ? `configured (${privyConfig.appId.substring(0, 12)}...)` : 'not configured'}`);
+      console.log(`  Wallets:  ${allWallets.length} created`);
+      if (wallet) {
+        console.log(`  Default:  ${wallet.address}`);
+        console.log(`  Chain:    ${wallet.chainType}`);
+      }
+      if (solConfig) {
+        console.log(`  RPC:      ${solConfig.rpcUrl ? solConfig.rpcUrl.substring(0, 50) + '...' : 'not set'}`);
+      }
+      console.log("");
+      if (!privyConfig) {
+        console.log("  Get started: nemoclaw wallet create");
+      }
+      console.log("");
+      break;
+    }
+  }
+}
+
 // ── Help ─────────────────────────────────────────────────────────
 
 function help() {
   console.log(`
-  nemoclaw — NemoClaw Autonomous Solana Agent CLI
+  nemoclaw — Autonomous Solana Trading Agent
 
-  ⚡ Quick Start:
-    nemoclaw solana                  One-shot Solana status + commands
-    nemoclaw onboard                 Interactive setup wizard (recommended)
+  ⚡ One command to deploy:
+    npm install -g @mawdbotsonsolana/nemoclaw
+    nemoclaw onboard
 
   Getting Started:
-    nemoclaw onboard                 Interactive setup (inference + Solana + wallet)
-    nemoclaw setup-spark             Set up on DGX Spark (fixes cgroup v2 + Docker)
+    nemoclaw solana                  Solana status + available commands
+    nemoclaw solana start            One-shot startup (bridge + bot + relay)
+    nemoclaw wallet create           Create an encrypted Privy agentic wallet
+    nemoclaw wallet list             List all wallets
+    nemoclaw onboard                 Full interactive setup wizard
 
   Sandbox Management:
-    nemoclaw solana start [sandbox]  One-shot startup for the Solana stack
     nemoclaw list                    List all sandboxes
-    nemoclaw <name> connect          Connect to a sandbox
-    nemoclaw <name> solana-stack     Start bridge + Telegram bot + relay together
-    nemoclaw <name> solana-agent     Run the Pump-Fun Solana tracker bot
-    nemoclaw <name> solana-bridge    Real-time Telegram wallet narration (natural language)
-    nemoclaw <name> telegram-bot     Run the Pump-Fun Telegram monitor bot + API
-    nemoclaw <name> payment-app      Run the payment-gated Pump-Fun agent app
-    nemoclaw <name> swarm-bot        Run the Pump-Fun swarm dashboard
-    nemoclaw <name> websocket-server Run the Pump-Fun WebSocket relay
-    nemoclaw <name> status           Show sandbox status and health
+    nemoclaw <name> connect          Open sandbox shell
+    nemoclaw <name> solana-stack     Start bridge + bot + relay together
+    nemoclaw <name> solana-agent     Pump-Fun tracker bot
+    nemoclaw <name> solana-bridge    Natural-language Telegram wallet narration
+    nemoclaw <name> telegram-bot     Pump-Fun Telegram monitor + API
+    nemoclaw <name> payment-app      Payment-gated agent app
+    nemoclaw <name> swarm-bot        Pump-Fun swarm dashboard
+    nemoclaw <name> websocket-server Pump-Fun WebSocket relay
+    nemoclaw <name> status           Sandbox + Solana + wallet status
     nemoclaw <name> logs [--follow]  View sandbox logs
     nemoclaw <name> destroy          Stop NIM + delete sandbox
 
   Policy Presets:
-    nemoclaw <name> policy-add       Add a policy preset to a sandbox
+    nemoclaw <name> policy-add       Add network policy preset
     nemoclaw <name> policy-list      List presets (● = applied)
 
   Deploy:
-    nemoclaw deploy <instance>       Deploy to a Brev VM and start services
+    nemoclaw deploy <instance>       Deploy to a Brev GPU VM
 
   Services:
-    nemoclaw start                   Start services (Telegram, tunnel)
-    nemoclaw stop                    Stop all services
-    nemoclaw status                  Show sandbox list and service status
+    nemoclaw start / stop / status   Manage auxiliary services
 
-  Solana tooling inside sandbox:
-    solana config set --url <rpc>    Set Solana CLI RPC
-    solana-test-validator             Run local test-validator (Pump programs cloned)
-    solana-keygen new                Generate keypairs
-    spl-token create-token           Create SPL tokens
-    helius                           Helius RPC CLI tools
+  Inside the sandbox you get:
+    solana, solana-test-validator, spl-token, helius
+    Pump-Fun SDK, 44 DeFi agent personas, Privy wallet skill
 
-  Credentials are saved securely in ~/.nemoclaw/ (mode 600).
-  Wallet private keys stay in Privy — never stored locally.
+  Credentials: ~/.nemoclaw/ (mode 600)
+  Wallet keys: managed by Privy — never stored locally
 `);
 }
 
@@ -636,6 +732,7 @@ const [cmd, ...args] = process.argv.slice(2);
       case "status":      showStatus(); break;
       case "list":        listSandboxes(); break;
       case "solana":      await quickStartSolana(args); break;
+      case "wallet":      await walletCommand(args); break;
       default:            help(); break;
     }
     return;

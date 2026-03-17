@@ -63,6 +63,7 @@ Solana capabilities:
 - `spl-token` for SPL token operations
 - `helius` CLI for Helius RPC and account tooling when configured
 - Privy agentic wallet for secure, policy-governed transaction signing
+- NemoClaw vault at `~/.nemoclaw/vault/` for append-only JSONL wallet, trade, and heartbeat logs
 - Full Pump-Fun SDK for token creation, trading, and fee management
 
 High-value local docs:

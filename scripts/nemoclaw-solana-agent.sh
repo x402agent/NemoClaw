@@ -31,6 +31,9 @@ warn_env() {
 export SOLANA_RPC_URL="${SOLANA_RPC_URL:-https://rpc.solanatracker.io/public}"
 export NEXT_PUBLIC_SOLANA_RPC_URL="${NEXT_PUBLIC_SOLANA_RPC_URL:-$SOLANA_RPC_URL}"
 export SOLANA_WS_URL="${SOLANA_WS_URL:-$SOLANA_RPC_URL}"
+export NEMOCLAW_VAULT_DIR="${NEMOCLAW_VAULT_DIR:-${HOME:-/sandbox}/.nemoclaw/vault}"
+
+mkdir -p "${NEMOCLAW_VAULT_DIR}"
 
 # ── Mode selection ───────────────────────────────────────────────
 
@@ -49,6 +52,7 @@ case "$MODE" in
     echo "[solana-agent] WS: ${SOLANA_WS_URL}"
     echo "[solana-agent] Mint: ${AGENT_TOKEN_MINT_ADDRESS}"
     echo "[solana-agent] Dev wallet: ${DEVELOPER_WALLET}"
+    echo "[solana-agent] Vault: ${NEMOCLAW_VAULT_DIR}"
     if [ -n "${HELIUS_API_KEY:-}" ]; then
       echo "[solana-agent] Helius: configured"
     fi
@@ -93,6 +97,7 @@ case "$MODE" in
     echo "[solana-agent] Status Report"
     echo "[solana-agent] RPC: ${SOLANA_RPC_URL}"
     echo "[solana-agent] WS:  ${SOLANA_WS_URL}"
+    echo "[solana-agent] Vault: ${NEMOCLAW_VAULT_DIR}"
     echo "[solana-agent] Chain health:"
     curl -sf -X POST "${SOLANA_RPC_URL}" \
       -H "Content-Type: application/json" \
