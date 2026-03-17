@@ -30,6 +30,41 @@ function shellQuote(value) {
   return `'${String(value).replace(/'/g, `'\\''`)}'`;
 }
 
+function deriveWebsocketUrl(rpcUrl) {
+  if (!rpcUrl) return null;
+  try {
+    const url = new URL(rpcUrl);
+    url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+function runSandboxScript(sandboxName, envValues, scriptName) {
+  const exports = Object.entries(envValues)
+    .filter(([, value]) => value !== undefined && value !== null && value !== "")
+    .map(([key, value]) => `${key}=${shellQuote(value)}`)
+    .join(" ");
+  const innerCmd = exports ? `export ${exports} && ${scriptName}` : scriptName;
+  run(`openshell sandbox connect "${sandboxName}" -- bash -lc ${shellQuote(innerCmd)}`);
+}
+
+function validateSandboxEnv(label, envValues, requiredKeys, optionalHint) {
+  const missing = requiredKeys.filter((key) => !envValues[key]);
+  if (missing.length === 0) {
+    return;
+  }
+  console.error(`  Missing environment variables for ${label}:`);
+  missing.forEach((key) => console.error(`    - ${key}`));
+  console.error("");
+  console.error("  Export them in your shell or store them in ~/.nemoclaw/credentials.json.");
+  if (optionalHint) {
+    console.error(`  Optional: ${optionalHint}`);
+  }
+  process.exit(1);
+}
+
 // ── Commands ─────────────────────────────────────────────────────
 
 async function onboard() {
@@ -286,24 +321,107 @@ function sandboxSolanaAgent(sandboxName) {
     POLL_INTERVAL_SECONDS: getCredential("POLL_INTERVAL_SECONDS"),
   };
 
-  const missing = ["AGENT_TOKEN_MINT_ADDRESS", "DEVELOPER_WALLET", "TELEGRAM_BOT_TOKEN"]
-    .filter((key) => !envValues[key]);
-  if (missing.length > 0) {
-    console.error("  Missing environment variables for the Solana agent:");
-    missing.forEach((key) => console.error(`    - ${key}`));
-    console.error("");
-    console.error("  Export them in your shell or store them in ~/.nemoclaw/credentials.json.");
-    console.error("  Optional: SOLANA_RPC_URL, TELEGRAM_NOTIFY_CHAT_IDS, PRICE_AMOUNT, CURRENCY_MINT.");
-    process.exit(1);
-  }
+  validateSandboxEnv(
+    "the Solana agent",
+    envValues,
+    ["AGENT_TOKEN_MINT_ADDRESS", "DEVELOPER_WALLET", "TELEGRAM_BOT_TOKEN"],
+    "SOLANA_RPC_URL, TELEGRAM_NOTIFY_CHAT_IDS, PRICE_AMOUNT, CURRENCY_MINT."
+  );
 
-  const exports = Object.entries(envValues)
-    .filter(([, value]) => value)
-    .map(([key, value]) => `${key}=${shellQuote(value)}`)
-    .join(" ");
+  runSandboxScript(sandboxName, envValues, "nemoclaw-solana-agent");
+}
 
-  const innerCmd = `export ${exports} && nemoclaw-solana-agent`;
-  run(`openshell sandbox connect "${sandboxName}" -- bash -lc ${shellQuote(innerCmd)}`);
+function sandboxPaymentApp(sandboxName) {
+  const envValues = {
+    SOLANA_RPC_URL: getCredential("SOLANA_RPC_URL") || "https://rpc.solanatracker.io/public",
+    NEXT_PUBLIC_SOLANA_RPC_URL:
+      getCredential("NEXT_PUBLIC_SOLANA_RPC_URL") ||
+      getCredential("SOLANA_RPC_URL") ||
+      "https://rpc.solanatracker.io/public",
+    AGENT_TOKEN_MINT_ADDRESS: getCredential("AGENT_TOKEN_MINT_ADDRESS"),
+    CURRENCY_MINT: getCredential("CURRENCY_MINT"),
+    PRICE_AMOUNT: getCredential("PRICE_AMOUNT"),
+    DEFI_AGENT_ID: getCredential("DEFI_AGENT_ID") || process.env.DEFI_AGENT_ID,
+    PORT: getCredential("PAYMENT_APP_PORT") || process.env.PAYMENT_APP_PORT || process.env.PORT,
+  };
+
+  validateSandboxEnv(
+    "the payment app",
+    envValues,
+    ["AGENT_TOKEN_MINT_ADDRESS"],
+    "SOLANA_RPC_URL, NEXT_PUBLIC_SOLANA_RPC_URL, CURRENCY_MINT, PRICE_AMOUNT, DEFI_AGENT_ID, PAYMENT_APP_PORT."
+  );
+
+  runSandboxScript(sandboxName, envValues, "nemoclaw-payment-app");
+}
+
+function sandboxTelegramBot(sandboxName) {
+  const rpcUrl = getCredential("SOLANA_RPC_URL") || "https://rpc.solanatracker.io/public";
+  const envValues = {
+    TELEGRAM_BOT_TOKEN: getCredential("TELEGRAM_BOT_TOKEN"),
+    SOLANA_RPC_URL: rpcUrl,
+    SOLANA_WS_URL:
+      getCredential("SOLANA_WS_URL") ||
+      deriveWebsocketUrl(rpcUrl),
+    ALLOWED_USER_IDS: getCredential("ALLOWED_USER_IDS"),
+    ENABLE_API: getCredential("ENABLE_API") || process.env.ENABLE_API,
+    ENABLE_LAUNCH_MONITOR: getCredential("ENABLE_LAUNCH_MONITOR") || process.env.ENABLE_LAUNCH_MONITOR,
+    ENABLE_GRADUATION_ALERTS:
+      getCredential("ENABLE_GRADUATION_ALERTS") || process.env.ENABLE_GRADUATION_ALERTS,
+    ENABLE_TRADE_ALERTS: getCredential("ENABLE_TRADE_ALERTS") || process.env.ENABLE_TRADE_ALERTS,
+    ENABLE_FEE_DISTRIBUTION_ALERTS:
+      getCredential("ENABLE_FEE_DISTRIBUTION_ALERTS") || process.env.ENABLE_FEE_DISTRIBUTION_ALERTS,
+    GITHUB_ONLY_FILTER: getCredential("GITHUB_ONLY_FILTER") || process.env.GITHUB_ONLY_FILTER,
+    WHALE_THRESHOLD_SOL: getCredential("WHALE_THRESHOLD_SOL") || process.env.WHALE_THRESHOLD_SOL,
+    POLL_INTERVAL_SECONDS: getCredential("POLL_INTERVAL_SECONDS") || process.env.POLL_INTERVAL_SECONDS,
+    PORT: getCredential("TELEGRAM_API_PORT") || process.env.TELEGRAM_API_PORT || process.env.PORT,
+    LOG_LEVEL: getCredential("LOG_LEVEL") || process.env.LOG_LEVEL,
+  };
+
+  validateSandboxEnv(
+    "the Telegram bot",
+    envValues,
+    ["TELEGRAM_BOT_TOKEN"],
+    "SOLANA_RPC_URL, SOLANA_WS_URL, ALLOWED_USER_IDS, ENABLE_API, ENABLE_LAUNCH_MONITOR, ENABLE_GRADUATION_ALERTS, ENABLE_TRADE_ALERTS, ENABLE_FEE_DISTRIBUTION_ALERTS, WHALE_THRESHOLD_SOL, POLL_INTERVAL_SECONDS, TELEGRAM_API_PORT."
+  );
+
+  runSandboxScript(sandboxName, envValues, "nemoclaw-telegram-bot");
+}
+
+function sandboxSwarmBot(sandboxName) {
+  const rpcUrl = getCredential("SOLANA_RPC_URL") || "https://rpc.solanatracker.io/public";
+  const envValues = {
+    SOLANA_RPC_URL: rpcUrl,
+    SOLANA_WS_URL:
+      getCredential("SOLANA_WS_URL") ||
+      deriveWebsocketUrl(rpcUrl),
+    PORT: getCredential("SWARM_BOT_PORT") || process.env.SWARM_BOT_PORT || process.env.PORT,
+    DB_PATH: getCredential("DB_PATH") || process.env.DB_PATH,
+    DEFAULT_SLIPPAGE_BPS: getCredential("DEFAULT_SLIPPAGE_BPS") || process.env.DEFAULT_SLIPPAGE_BPS,
+    MAX_POSITION_SOL_PER_BOT:
+      getCredential("MAX_POSITION_SOL_PER_BOT") || process.env.MAX_POSITION_SOL_PER_BOT,
+    MAX_TOTAL_POSITION_SOL:
+      getCredential("MAX_TOTAL_POSITION_SOL") || process.env.MAX_TOTAL_POSITION_SOL,
+    POLL_INTERVAL_MS: getCredential("POLL_INTERVAL_MS") || process.env.POLL_INTERVAL_MS,
+    LOG_LEVEL: getCredential("LOG_LEVEL") || process.env.LOG_LEVEL,
+  };
+
+  runSandboxScript(sandboxName, envValues, "nemoclaw-swarm-bot");
+}
+
+function sandboxWebsocketServer(sandboxName) {
+  const rpcUrl = getCredential("SOLANA_RPC_URL") || "https://rpc.solanatracker.io/public";
+  const envValues = {
+    SOLANA_RPC_URL: rpcUrl,
+    SOLANA_RPC_WS:
+      getCredential("SOLANA_RPC_WS") ||
+      getCredential("SOLANA_WS_URL") ||
+      deriveWebsocketUrl(rpcUrl),
+    PORT: getCredential("WEBSOCKET_SERVER_PORT") || process.env.WEBSOCKET_SERVER_PORT || process.env.PORT,
+    IPFS_GATEWAY: getCredential("IPFS_GATEWAY") || process.env.IPFS_GATEWAY,
+  };
+
+  runSandboxScript(sandboxName, envValues, "nemoclaw-websocket-server");
 }
 
 // ── Help ─────────────────────────────────────────────────────────
@@ -321,6 +439,10 @@ function help() {
     nemoclaw list                    List all sandboxes
     nemoclaw <name> connect          Connect to a sandbox
     nemoclaw <name> solana-agent     Run the bundled Pump-Fun Solana tracker bot
+    nemoclaw <name> telegram-bot     Run the Pump-Fun Telegram monitor bot + API
+    nemoclaw <name> payment-app      Run the payment-gated Pump-Fun agent app
+    nemoclaw <name> swarm-bot        Run the Pump-Fun swarm dashboard
+    nemoclaw <name> websocket-server Run the Pump-Fun WebSocket relay
     nemoclaw <name> status           Show sandbox status and health
     nemoclaw <name> logs [--follow]  View sandbox logs
     nemoclaw <name> destroy          Stop NIM + delete sandbox
@@ -378,6 +500,10 @@ const [cmd, ...args] = process.argv.slice(2);
     switch (action) {
       case "connect":     sandboxConnect(cmd); break;
       case "solana-agent": sandboxSolanaAgent(cmd); break;
+      case "telegram-bot": sandboxTelegramBot(cmd); break;
+      case "payment-app": sandboxPaymentApp(cmd); break;
+      case "swarm-bot":   sandboxSwarmBot(cmd); break;
+      case "websocket-server": sandboxWebsocketServer(cmd); break;
       case "status":      sandboxStatus(cmd); break;
       case "logs":        sandboxLogs(cmd, actionArgs.includes("--follow")); break;
       case "policy-add":  await sandboxPolicyAdd(cmd); break;
@@ -385,7 +511,7 @@ const [cmd, ...args] = process.argv.slice(2);
       case "destroy":     sandboxDestroy(cmd); break;
       default:
         console.error(`  Unknown action: ${action}`);
-        console.error(`  Valid actions: connect, solana-agent, status, logs, policy-add, policy-list, destroy`);
+        console.error(`  Valid actions: connect, solana-agent, telegram-bot, payment-app, swarm-bot, websocket-server, status, logs, policy-add, policy-list, destroy`);
         process.exit(1);
     }
     return;

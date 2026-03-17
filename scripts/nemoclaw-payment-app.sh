@@ -31,7 +31,7 @@ import sys
 workspace = pathlib.Path(os.environ["WORKSPACE_ROOT"])
 root = pathlib.Path(os.environ["PUMPFUN_ROOT"])
 agent_id = os.environ["DEFI_AGENT_ID"]
-persona_path = root / "defi-agents" / "locales" / agent_id / "index.json"
+persona_path = root / "defi-agents" / "src" / f"{agent_id}.json"
 skill_path = root / "tokenized-agents-skill" / "SKILL.md"
 
 if not persona_path.exists():
@@ -43,6 +43,7 @@ title = data.get("meta", {}).get("title", agent_id)
 description = data.get("meta", {}).get("description", "")
 system_role = data.get("config", {}).get("systemRole", "").strip()
 opening = data.get("config", {}).get("openingMessage", "").strip()
+tags = ", ".join(data.get("meta", {}).get("tags", []))
 
 workspace.mkdir(parents=True, exist_ok=True)
 content = f"""# Active Tokenized Agent Persona
@@ -50,6 +51,7 @@ content = f"""# Active Tokenized Agent Persona
 Persona ID: `{agent_id}`
 Title: {title}
 Description: {description}
+Tags: {tags}
 
 Opening message:
 {opening}
@@ -67,6 +69,7 @@ Runtime rules:
 PYSOUL
   ln -snf "${PUMPFUN_ROOT}/tokenized-agents-skill" "${WORKSPACE_ROOT}/pumpfun/tokenized-agents-skill"
   ln -snf "${PUMPFUN_ROOT}/defi-agents" "${WORKSPACE_ROOT}/pumpfun/defi-agents"
+  ln -snf "${PUMPFUN_ROOT}/x402" "${WORKSPACE_ROOT}/pumpfun/x402"
 }
 
 require_env AGENT_TOKEN_MINT_ADDRESS

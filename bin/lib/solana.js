@@ -17,9 +17,9 @@ const PRIVY_CONFIG_PATH = path.join(NEMOCLAW_DIR, "privy.json");
 // ── RPC Configuration ────────────────────────────────────────────
 
 const DEFAULT_RPC_OPTIONS = [
+  { key: "helius", label: "Helius (mainnet)", url: "https://mainnet.helius-rpc.com/?api-key=6aaff09d-22ed-4300-80ea-d6a41f67ff6e" },
   { key: "tracker", label: "Solana Tracker (free)", url: "https://rpc.solanatracker.io/public" },
   { key: "ankr", label: "Ankr (free)", url: "https://rpc.ankr.com/solana" },
-  { key: "helius", label: "Helius (requires key)", url: "https://mainnet.helius-rpc.com/?api-key=" },
   { key: "local", label: "Local test-validator", url: "http://localhost:8899" },
   { key: "custom", label: "Custom RPC URL", url: "" },
 ];

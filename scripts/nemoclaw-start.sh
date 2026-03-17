@@ -25,21 +25,33 @@ write_workspace_prompts() {
   ln -snf "${PUMPFUN_ROOT}/agent-prompts" "${WORKSPACE_ROOT}/pumpfun/agent-prompts"
   ln -snf "${PUMPFUN_ROOT}/agent-tasks" "${WORKSPACE_ROOT}/pumpfun/agent-tasks"
   ln -snf "${PUMPFUN_ROOT}/agent-app" "${WORKSPACE_ROOT}/pumpfun/agent-app"
+  ln -snf "${PUMPFUN_ROOT}/defi-agents" "${WORKSPACE_ROOT}/pumpfun/defi-agents"
+  ln -snf "${PUMPFUN_ROOT}/telegram-bot" "${WORKSPACE_ROOT}/pumpfun/telegram-bot"
+  ln -snf "${PUMPFUN_ROOT}/swarm-bot" "${WORKSPACE_ROOT}/pumpfun/swarm-bot"
+  ln -snf "${PUMPFUN_ROOT}/websocket-server" "${WORKSPACE_ROOT}/pumpfun/websocket-server"
+  ln -snf "${PUMPFUN_ROOT}/x402" "${WORKSPACE_ROOT}/pumpfun/x402"
+  ln -snf "${PUMPFUN_ROOT}/tools" "${WORKSPACE_ROOT}/pumpfun/tools"
+  ln -snf "${PUMPFUN_ROOT}/sdk" "${WORKSPACE_ROOT}/pumpfun/sdk"
+  ln -snf "${PUMPFUN_ROOT}/tokenized-agents-skill" "${WORKSPACE_ROOT}/pumpfun/tokenized-agents-skill"
 
   cat > "${WORKSPACE_ROOT}/AGENTS.md" <<'EOF'
 # Pump-Fun Solana Agent Workspace
 
 This OpenClaw workspace is a **Solana autonomous developer agent** with built-in
-Pump.fun SDK, tokenized agent payments, 44 DeFi agent personas, and an encrypted
-Privy agentic wallet.
+Pump.fun SDK, tokenized agent payments, the Pump-Fun Telegram/runtime stack,
+44 DeFi agent personas, and an encrypted Privy agentic wallet.
 
 Core behavior:
 - Treat `pumpfun/docs/` as the primary local documentation corpus for protocol behavior, APIs, architecture, deployment, troubleshooting, and roadmap questions.
 - Treat `pumpfun/docs/pump-official/` and `pumpfun/docs/pump-public-docs/` as authoritative references for official Pump program behavior and terminology.
-- Use `pumpfun/agent-app/` as the implementation reference for the bundled Solana tracker bot.
+- Use `pumpfun/telegram-bot/` as the primary implementation reference for NemoClaw's Pump-Fun Telegram bot runtime.
+- Use `pumpfun/agent-app/` as the implementation reference for the bundled payment-gated app and tracker bot.
 - Use `pumpfun/sdk/` to access the Pump-Fun SDK source (`@nirholas/pump-sdk`) for token creation, bonding curve operations, AMM pools, and fee management.
-- Use `pumpfun/defi-agents/personas/` to load any of the 44 DeFi agent persona JSONs for specialized capabilities.
+- Use `pumpfun/defi-agents/src/` to load any of the 44 DeFi agent persona JSONs for specialized capabilities.
 - Use `pumpfun/tokenized-agents-skill/` for the `@pump-fun/agent-payments-sdk` integration guide.
+- Use `pumpfun/x402/` for HTTP 402 payment patterns, Solana USDC micropayments, and API monetization.
+- Use `pumpfun/swarm-bot/` and `pumpfun/websocket-server/` for dashboard, realtime relay, and multi-bot coordination patterns.
+- Use `pumpfun/tools/` for operational scripts and keypair verification helpers.
 - Use `pumpfun/agent-prompts/` and `pumpfun/agent-tasks/` as scaffolding and design references when extending or refactoring the Solana agent.
 - Before proposing Pump.fun transaction logic, fee logic, or monitoring logic, read the relevant local docs first instead of improvising.
 
@@ -62,8 +74,10 @@ High-value local docs:
 - `pumpfun/docs/token-incentives.md`
 - `pumpfun/docs/channel-bot-architecture.md`
 
-When working on the bundled tracker bot:
-- Start with `pumpfun/agent-app/src/bot/`.
+When working on the bundled Telegram/runtime stack:
+- Start with `pumpfun/telegram-bot/src/` for monitoring, alerts, and API behavior.
+- Use `pumpfun/agent-app/src/` for payment-gated app flows and wallet-adapter UX.
+- Pull persona definitions from `pumpfun/defi-agents/src/*.json`.
 - Preserve Solana addresses and discriminators exactly as documented.
 - Prefer the local docs and code over generic Solana advice when they conflict.
 EOF
@@ -75,9 +89,14 @@ Bundled local references for the Solana NemoClaw environment:
 
 - `docs/`: Pump-Fun documentation corpus, including architecture, API reference, deployment, analytics, troubleshooting, roadmap, and official/public protocol docs.
 - `sdk/`: Pump-Fun SDK source code (`@nirholas/pump-sdk`) — bonding curve math, AMM pools, fee sharing, token incentives.
-- `agent-app/`: Pump-Fun tracker bot and payment-gated app code used as the baseline Solana agent implementation.
-- `defi-agents/personas/`: 44 DeFi agent persona JSON definitions — whale watcher, yield farmer, smart contract auditor, etc.
+- `telegram-bot/`: primary Pump-Fun Telegram monitoring bot with REST API and alerting.
+- `agent-app/`: payment-gated Solana agent app and tracker-bot reference implementation.
+- `defi-agents/`: raw persona JSON definitions, locales, manifests, and docs for the DeFi agent library.
 - `tokenized-agents-skill/`: Full `@pump-fun/agent-payments-sdk` integration guide (SKILL.md).
+- `x402/`: HTTP 402 payment protocol implementation for Solana/USDC monetization.
+- `swarm-bot/`: multi-strategy bot manager with dashboard and SQLite state.
+- `websocket-server/`: realtime Pump-Fun launch relay server for browser clients.
+- `tools/`: operational helper scripts and keypair/security utilities.
 - `agent-prompts/`: build and refactor prompts for PumpKit agent workflows.
 - `agent-tasks/`: standalone task specs describing parallel deliverables and expected bot/docs outputs.
 
@@ -90,8 +109,9 @@ Suggested reading order for new work:
 6. `docs/rpc-best-practices.md`
 7. `sdk/src/sdk.ts` (core SDK)
 8. `tokenized-agents-skill/SKILL.md`
-9. `agent-app/src/bot/index.ts`
-10. `agent-app/src/bot/monitor.ts`
+9. `telegram-bot/src/index.ts`
+10. `defi-agents/src/pump-fun-sdk-expert.json`
+11. `agent-app/src/app/api/pump-fun/verify-payment/route.ts`
 EOF
 }
 
