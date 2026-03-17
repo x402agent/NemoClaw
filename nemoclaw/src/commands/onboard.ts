@@ -23,6 +23,11 @@ export interface OnboardOptions {
 }
 
 const ENDPOINT_TYPES: EndpointType[] = ["build", "ncp", "nim-local", "vllm", "ollama", "custom"];
+const SUPPORTED_ENDPOINT_TYPES: EndpointType[] = ["build", "ncp"];
+
+function isExperimentalEnabled(): boolean {
+  return process.env.NEMOCLAW_EXPERIMENTAL === "1";
+}
 
 const BUILD_ENDPOINT_URL = "https://integrate.api.nvidia.com/v1";
 const HOST_GATEWAY_URL = "http://host.openshell.internal";
@@ -135,6 +140,45 @@ function showConfig(config: NemoClawOnboardConfig, logger: PluginLogger): void {
   logger.info(`  Onboarded:   ${config.onboardedAt}`);
 }
 
+async function promptEndpoint(
+  ollama: { installed: boolean; running: boolean },
+): Promise<EndpointType> {
+  const options = [
+    {
+      label: "NVIDIA Build (build.nvidia.com)",
+      value: "build",
+      hint: "recommended — zero infra, free credits",
+    },
+    {
+      label: "NVIDIA Cloud Partner (NCP)",
+      value: "ncp",
+      hint: "dedicated capacity, SLA-backed",
+    },
+  ];
+
+  if (isExperimentalEnabled()) {
+    options.push(
+      {
+        label: "Self-hosted NIM [experimental]",
+        value: "nim-local",
+        hint: "experimental — your own NIM container deployment",
+      },
+      {
+        label: "Local vLLM [experimental]",
+        value: "vllm",
+        hint: "experimental — local development",
+      },
+      {
+        label: "Local Ollama [experimental]",
+        value: "ollama",
+        hint: `experimental — ${ollama.installed ? "installed locally" : "localhost:11434"}`,
+      },
+    );
+  }
+
+  return (await promptSelect("Select your inference endpoint:", options)) as EndpointType;
+}
+
 function execOpenShell(args: string[]): string {
   return execFileSync("openshell", args, {
     encoding: "utf-8",
@@ -175,40 +219,20 @@ export async function cliOnboard(opts: OnboardOptions): Promise<void> {
       );
       return;
     }
-    endpointType = opts.endpoint as EndpointType;
+    const ep = opts.endpoint as EndpointType;
+    if (!SUPPORTED_ENDPOINT_TYPES.includes(ep)) {
+      logger.warn(
+        `Note: '${ep}' is experimental and may not work reliably.`,
+      );
+    }
+    endpointType = ep;
   } else {
     const ollama = detectOllama();
-    if (ollama.running) {
+    if (ollama.running && isExperimentalEnabled()) {
       logger.info("Detected Ollama on localhost:11434. Using it for onboarding.");
       endpointType = "ollama";
     } else {
-      endpointType = (await promptSelect("Select your inference endpoint:", [
-        {
-          label: "NVIDIA Build (build.nvidia.com)",
-          value: "build",
-          hint: "recommended — zero infra, free credits",
-        },
-        {
-          label: "NVIDIA Cloud Partner (NCP)",
-          value: "ncp",
-          hint: "dedicated capacity, SLA-backed",
-        },
-        {
-          label: "Self-hosted NIM",
-          value: "nim-local",
-          hint: "your own NIM container deployment",
-        },
-        {
-          label: "Local vLLM",
-          value: "vllm",
-          hint: "local development",
-        },
-        {
-          label: "Local Ollama",
-          value: "ollama",
-          hint: ollama.installed ? "installed locally" : "localhost:11434",
-        },
-      ])) as EndpointType;
+      endpointType = await promptEndpoint(ollama);
     }
   }
 

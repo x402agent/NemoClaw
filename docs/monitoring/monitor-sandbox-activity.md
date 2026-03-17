@@ -105,7 +105,6 @@ If the request fails, check the following:
 1. Run `openclaw nemoclaw status` to confirm the active provider and endpoint.
 2. Run `openclaw nemoclaw logs -f` to view error messages from the blueprint runner.
 3. Verify that the inference endpoint is reachable from the host.
-   For local vLLM or NIM, confirm that the server is running.
 
 ## Common Issues
 
