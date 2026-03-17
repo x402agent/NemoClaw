@@ -22,7 +22,11 @@
   },
   "scripts": {
     "test": "node --test test/*.test.js",
-    "prepublishOnly": "cd nemoclaw && npm install --ignore-scripts && npm run build"
+    "build:plugin": "npm --prefix nemoclaw run build",
+    "pack:check": "npm pack --dry-run --cache /tmp/nemoclaw-npm-cache",
+    "release:check": "npm run build:plugin && npm test && npm run pack:check",
+    "publish:public": "npm publish --access public",
+    "prepublishOnly": "npm run build:plugin && npm test"
   },
   "dependencies": {
     "openclaw": "2026.3.11"
@@ -60,6 +64,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/NVIDIA/NemoClaw.git"
+    "url": "git+https://github.com/NVIDIA/NemoClaw.git"
+  },
+  "homepage": "https://github.com/NVIDIA/NemoClaw#readme",
+  "bugs": {
+    "url": "https://github.com/NVIDIA/NemoClaw/issues"
   }
 }

@@ -141,6 +141,26 @@ nemoclaw deploy <instance>       # Deploy to a Brev GPU VM
 
 ---
 
+## Publishing
+
+Validate the release artifact locally:
+
+```bash
+npm run release:check
+```
+
+Publish to npm with a standard token-based flow:
+
+```bash
+export NPM_TOKEN=...
+printf "//registry.npmjs.org/:_authToken=${NPM_TOKEN}\n" > ~/.npmrc
+npm publish --access public
+```
+
+Do not commit `.npmrc` or hardcode registry tokens into the repository.
+
+---
+
 ## Telegram Bot Commands
 
 When the Solana bridge is running, interact with it via Telegram:
