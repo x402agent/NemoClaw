@@ -50,8 +50,8 @@ nemoclaw solana start
 │   🛡️ Sandboxed ─────────── Landlock + seccomp + netns via       │
 │   │                       NVIDIA OpenShell. Deny-all default.   │
 │   │                                                             │
-│   🚀 NVIDIA Inference ─── Nemotron 120B via cloud API, routed  │
-│                           through the OpenShell gateway.        │
+│   🚀 DeepSolana Model ── 8bit/DeepSolana via Ollama (auto-pulled).│
+│                           Solana-tuned. Swap for any Ollama model.│
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -81,7 +81,7 @@ The wizard walks through **9 steps**:
 | 1 | **Preflight** — Docker, OpenShell, GPU detection |
 | 2 | **Gateway** — Start the OpenShell gateway |
 | 3 | **Sandbox** — Build Docker image (Solana CLI v2.2.2, Pump-Fun SDK, 43 DeFi personas) |
-| 4 | **Inference** — Pick NIM / NVIDIA Cloud / Ollama / vLLM |
+| 4 | **Inference** — Auto-detects Ollama → pulls `8bit/DeepSolana`. Or pick NVIDIA Cloud / vLLM |
 | 5 | **Provider** — Configure the inference endpoint |
 | 6 | **OpenClaw** — Install the agent framework in the sandbox |
 | 7 | **Solana & Wallet** — RPC URL (Helius default), Privy agentic wallet, Pump-Fun token |
@@ -114,6 +114,30 @@ One command spins up the full Solana operator stack inside the sandbox:
 | ✅ **WebSocket Relay** | Real-time launch feed for dashboards and downstream bots |
 | ☐ **Payment App** | Payment-gated agent (enable: `START_PAYMENT_APP=true`) |
 | ☐ **Swarm Bot** | Multi-bot orchestration dashboard (enable: `START_SWARM_BOT=true`) |
+
+---
+
+## 🧠 Default Model: `8bit/DeepSolana`
+
+NemoClaw ships with **8bit/DeepSolana** as the default inference model, auto-pulled via Ollama during onboard. It's a Solana-tuned model that understands Pump-Fun mechanics, token launches, DeFi strategies, and wallet narration out of the box.
+
+```bash
+# What happens during onboard:
+#   1. Detects Ollama on localhost:11434
+#   2. Runs: ollama pull 8bit/DeepSolana
+#   3. Configures OpenShell provider → inference route
+#
+# To use a different model:
+ollama pull <any-model>
+openshell inference set --no-verify --provider ollama-local --model <any-model>
+```
+
+| Option | How to select |
+|---|---|
+| **8bit/DeepSolana** (default) | Auto-selected when Ollama is detected |
+| **NVIDIA Cloud** (Nemotron 120B) | Select "NVIDIA Cloud API" during onboard |
+| **Any Ollama model** | `ollama pull <model>` then update inference route |
+| **vLLM** | Set `NEMOCLAW_EXPERIMENTAL=1`, run vLLM on port 8000 |
 
 ---
 
@@ -247,7 +271,7 @@ helius-cli                         # Helius RPC tools
         │         ┌────────────────┐                │        │
         │         │  OpenClaw Agent │◄───────────────┘        │
         │         │                │                          │
-        │         │  ├─ Nemotron 120B (inference via gateway) │
+        │         │  ├─ 8bit/DeepSolana (Ollama, auto-pulled)  │
         │         │  ├─ Privy Wallet Skill (sign/send/policy) │
         │         │  ├─ Pump-Fun SDK (@nirholas/pump-sdk)     │
         │         │  ├─ 43 DeFi Agent Personas                │
@@ -356,9 +380,13 @@ npm run pack:check
 # Full release check (build + test + pack)
 npm run release:check
 
-# Publish
+# Publish with a fresh npm token
+export NPM_TOKEN=<fresh-token>
+printf "//registry.npmjs.org/:_authToken=${NPM_TOKEN}\n" > ~/.npmrc
 npm run publish:public
 ```
+
+If an npm token was pasted into chat, terminal scrollback, or a commit by mistake, revoke it in npm first and mint a fresh publish token before running the publish step.
 
 ---
 

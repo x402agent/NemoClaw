@@ -277,9 +277,11 @@ async function setupNim(sandboxName, gpu) {
       return { model, provider };
     }
     if (ollamaRunning) {
-      console.log("  ✓ Ollama detected on localhost:11434 — using it [experimental]");
+      console.log("  ✓ Ollama detected on localhost:11434");
+      console.log("  Pulling 8bit/DeepSolana...");
+      run("ollama pull 8bit/DeepSolana 2>&1 || true", { ignoreError: true });
       provider = "ollama-local";
-      model = "nemotron-3-nano";
+      model = "8bit/DeepSolana";
       registry.updateSandbox(sandboxName, { model, provider, nimContainer });
       return { model, provider };
     }
@@ -291,16 +293,16 @@ async function setupNim(sandboxName, gpu) {
     options.push({ key: "nim", label: "Local NIM container (NVIDIA GPU) [experimental]" });
   }
   options.push({ key: "cloud", label: "NVIDIA Cloud API (build.nvidia.com)" });
-  if (EXPERIMENTAL && (hasOllama || ollamaRunning)) {
-    options.push({ key: "ollama", label: `Local Ollama (localhost:11434)${ollamaRunning ? " — running" : ""} [experimental]` });
+  if (hasOllama || ollamaRunning) {
+    options.push({ key: "ollama", label: `Ollama + DeepSolana (localhost:11434)${ollamaRunning ? " — running" : ""}` });
   }
   if (EXPERIMENTAL && vllmRunning) {
     options.push({ key: "vllm", label: "Existing vLLM instance (localhost:8000) — running [experimental]" });
   }
 
   // On macOS without Ollama, offer to install it
-  if (EXPERIMENTAL && !hasOllama && process.platform === "darwin") {
-    options.push({ key: "install-ollama", label: "Install Ollama (macOS) [experimental]" });
+  if (!hasOllama && process.platform === "darwin") {
+    options.push({ key: "install-ollama", label: "Install Ollama + DeepSolana (macOS)" });
   }
 
   if (options.length > 1) {
@@ -355,18 +357,22 @@ async function setupNim(sandboxName, gpu) {
         run("OLLAMA_HOST=0.0.0.0:11434 ollama serve > /dev/null 2>&1 &", { ignoreError: true });
         require("child_process").spawnSync("sleep", ["2"]);
       }
-      console.log("  ✓ Using Ollama on localhost:11434");
+      console.log("  Pulling 8bit/DeepSolana (Solana-tuned model)...");
+      run("ollama pull 8bit/DeepSolana 2>&1 || true", { ignoreError: true });
+      console.log("  ✓ Using Ollama + 8bit/DeepSolana");
       provider = "ollama-local";
-      model = "nemotron-3-nano";
+      model = "8bit/DeepSolana";
     } else if (selected.key === "install-ollama") {
       console.log("  Installing Ollama via Homebrew...");
       run("brew install ollama", { ignoreError: true });
       console.log("  Starting Ollama...");
       run("OLLAMA_HOST=0.0.0.0:11434 ollama serve > /dev/null 2>&1 &", { ignoreError: true });
       require("child_process").spawnSync("sleep", ["2"]);
-      console.log("  ✓ Using Ollama on localhost:11434");
+      console.log("  Pulling 8bit/DeepSolana (Solana-tuned model)...");
+      run("ollama pull 8bit/DeepSolana 2>&1 || true", { ignoreError: true });
+      console.log("  ✓ Using Ollama + 8bit/DeepSolana");
       provider = "ollama-local";
-      model = "nemotron-3-nano";
+      model = "8bit/DeepSolana";
     } else if (selected.key === "vllm") {
       console.log("  ✓ Using existing vLLM on localhost:8000");
       provider = "vllm-local";

@@ -1,6 +1,6 @@
 {
   "name": "@mawdbotsonsolana/nemoclaw",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "NemoClaw — autonomous Solana trading agent with Pump-Fun SDK, Privy agentic wallets, and natural-language Telegram bridge. One command to deploy.",
   "license": "Apache-2.0",
   "keywords": [

@@ -266,11 +266,12 @@ install_openshell
 
 # ── Install NemoClaw CLI ─────────────────────────────────────────
 
-info "Installing nemoclaw CLI..."
+NPM_PACKAGE="@mawdbotsonsolana/nemoclaw"
+info "Installing ${NPM_PACKAGE}..."
 if [ "$NODE_MGR" = "nodesource" ]; then
-  sudo npm install -g nemoclaw
+  sudo npm install -g "$NPM_PACKAGE"
 else
-  npm install -g nemoclaw
+  npm install -g "$NPM_PACKAGE"
 fi
 
 if [ "$NEED_RESHIM" = true ]; then

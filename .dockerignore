@@ -4,3 +4,11 @@ node_modules
 *.pyc
 __pycache__
 .pytest_cache
+Pump-Fun/pump-fun-repos
+pump-fun-sdk-main*
+pump-fun-skills-main
+.gemini
+.agents
+docs/_build
+test-ledger
+*.tgz

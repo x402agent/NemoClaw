@@ -701,8 +701,10 @@ function help() {
     nemoclaw start / stop / status   Manage auxiliary services
 
   Inside the sandbox you get:
-    solana, solana-test-validator, spl-token, helius
-    Pump-Fun SDK, 44 DeFi agent personas, Privy wallet skill
+    solana, solana-test-validator, spl-token, helius-cli
+    Pump-Fun SDK, 43 DeFi agent personas, Privy wallet skill
+
+  Default model: 8bit/DeepSolana (via Ollama, auto-pulled on onboard)
 
   Credentials: ~/.nemoclaw/ (mode 600)
   Wallet keys: managed by Privy — never stored locally
