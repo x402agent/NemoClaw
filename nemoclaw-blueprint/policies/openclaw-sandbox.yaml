@@ -165,3 +165,19 @@ network_policies:
         rules:
           - allow: { method: GET, path: "/bot*/**" }
           - allow: { method: POST, path: "/bot*/**" }
+
+  # ── Ollama (local inference) ───────────────────────────────────
+  # Allow sandbox to reach Ollama on the host for DeepSolana / any
+  # local model. Uses host.openshell.internal (Docker host alias).
+  ollama:
+    name: ollama
+    endpoints:
+      - host: host.openshell.internal
+        port: 11434
+        protocol: rest
+        enforcement: enforce
+        rules:
+          - allow: { method: "*", path: "/**" }
+    binaries:
+      - { path: /usr/local/bin/openclaw }
+      - { path: /usr/bin/curl }

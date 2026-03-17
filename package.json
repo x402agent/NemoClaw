@@ -1,6 +1,6 @@
 {
   "name": "@mawdbotsonsolana/nemoclaw",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "NemoClaw — autonomous Solana trading agent with Pump-Fun SDK, Privy agentic wallets, and natural-language Telegram bridge. One command to deploy.",
   "license": "Apache-2.0",
   "keywords": [
@@ -15,7 +15,9 @@
     "nvidia",
     "ai-agent",
     "defi",
-    "autonomous-agent"
+    "autonomous-agent",
+    "ollama",
+    "deepsolana"
   ],
   "bin": {
     "nemoclaw": "./bin/nemoclaw.js"
@@ -64,10 +66,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/NVIDIA/NemoClaw.git"
+    "url": "git+https://github.com/x402agent/NemoClaw.git"
   },
-  "homepage": "https://github.com/NVIDIA/NemoClaw#readme",
+  "homepage": "https://github.com/x402agent/NemoClaw#readme",
   "bugs": {
-    "url": "https://github.com/NVIDIA/NemoClaw/issues"
+    "url": "https://github.com/x402agent/NemoClaw/issues"
   }
 }

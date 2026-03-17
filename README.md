@@ -5,11 +5,11 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/@mawdbotsonsolana/nemoclaw"><img src="https://img.shields.io/npm/v/@mawdbotsonsolana/nemoclaw.svg?style=flat-square&color=cb3837" alt="npm"></a>
-  <a href="https://github.com/NVIDIA/NemoClaw/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue?style=flat-square" alt="License"></a>
-  <a href="https://github.com/NVIDIA/NemoClaw/blob/main/SECURITY.md"><img src="https://img.shields.io/badge/Security-Report%20a%20Vulnerability-red?style=flat-square" alt="Security"></a>
+  <a href="https://github.com/x402agent/NemoClaw/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue?style=flat-square" alt="License"></a>
   <img src="https://img.shields.io/badge/status-alpha-orange?style=flat-square" alt="Status">
   <img src="https://img.shields.io/badge/Solana-Mainnet-9945FF?style=flat-square&logo=solana&logoColor=white" alt="Solana">
   <img src="https://img.shields.io/badge/Telegram-Bot-26A5E4?style=flat-square&logo=telegram&logoColor=white" alt="Telegram">
+  <img src="https://img.shields.io/badge/Ollama-DeepSolana-000000?style=flat-square&logo=ollama&logoColor=white" alt="DeepSolana">
 </p>
 
 ---
@@ -33,6 +33,10 @@ nemoclaw solana start
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                                                                 │
+│   🧠 DeepSolana Model ── 8bit/DeepSolana via Ollama.           │
+│   │                       Solana-tuned LLM. Auto-pulled.       │
+│   │                       Understands DeFi, Pump-Fun, wallets. │
+│   │                                                             │
 │   🔐 Encrypted Wallet ─── Privy server wallet. Private keys    │
 │   │                       never leave Privy infrastructure.     │
 │   │                       Spending policies enforced on-chain.  │
@@ -48,10 +52,7 @@ nemoclaw solana start
 │   │                       advisor, risk engine, tax strategist. │
 │   │                                                             │
 │   🛡️ Sandboxed ─────────── Landlock + seccomp + netns via       │
-│   │                       NVIDIA OpenShell. Deny-all default.   │
-│   │                                                             │
-│   🚀 DeepSolana Model ── 8bit/DeepSolana via Ollama (auto-pulled).│
-│                           Solana-tuned. Swap for any Ollama model.│
+│                            NVIDIA OpenShell. Deny-all default.  │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -86,7 +87,7 @@ The wizard walks through **9 steps**:
 | 6 | **OpenClaw** — Install the agent framework in the sandbox |
 | 7 | **Solana & Wallet** — RPC URL (Helius default), Privy agentic wallet, Pump-Fun token |
 | 8 | **Test Validator** — Optional local validator with 4 cloned Pump programs |
-| 9 | **Policies** — Auto-apply `solana-rpc`, `pumpfun`, `privy`, `telegram` presets |
+| 9 | **Policies** — Auto-apply `solana-rpc`, `pumpfun`, `privy`, `telegram`, `ollama` presets |
 
 ### Set Environment
 
@@ -121,16 +122,22 @@ One command spins up the full Solana operator stack inside the sandbox:
 
 NemoClaw ships with **8bit/DeepSolana** as the default inference model, auto-pulled via Ollama during onboard. It's a Solana-tuned model that understands Pump-Fun mechanics, token launches, DeFi strategies, and wallet narration out of the box.
 
+### Setup
+
 ```bash
-# What happens during onboard:
-#   1. Detects Ollama on localhost:11434
-#   2. Runs: ollama pull 8bit/DeepSolana
-#   3. Configures OpenShell provider → inference route
-#
-# To use a different model:
-ollama pull <any-model>
-openshell inference set --no-verify --provider ollama-local --model <any-model>
+# Install Ollama (if not already installed)
+curl -fsSL https://ollama.com/install.sh | sh
+
+# Pull DeepSolana (happens automatically during onboard)
+ollama pull 8bit/DeepSolana
+
+# Verify it's running
+curl http://localhost:11434/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"8bit/DeepSolana","messages":[{"role":"user","content":"What is Pump-Fun?"}]}'
 ```
+
+### Model Options
 
 | Option | How to select |
 |---|---|
@@ -138,6 +145,64 @@ openshell inference set --no-verify --provider ollama-local --model <any-model>
 | **NVIDIA Cloud** (Nemotron 120B) | Select "NVIDIA Cloud API" during onboard |
 | **Any Ollama model** | `ollama pull <model>` then update inference route |
 | **vLLM** | Set `NEMOCLAW_EXPERIMENTAL=1`, run vLLM on port 8000 |
+
+### Switching Models
+
+```bash
+# Pull any model
+ollama pull llama3
+
+# Update the inference route
+openshell inference set --no-verify --provider ollama-local --model llama3
+
+# Or use NVIDIA Cloud
+openshell provider create --name nvidia --type openai \
+  --credential "OPENAI_API_KEY=nvapi-YOUR-KEY" \
+  --config "OPENAI_BASE_URL=https://integrate.api.nvidia.com/v1"
+openshell inference set --provider nvidia --model nvidia/llama-3.3-70b-instruct
+```
+
+---
+
+## 🐳 Sandbox
+
+NemoClaw runs inside a hardened OpenShell sandbox container. The sandbox is created from the community `openclaw` image and includes all Solana tooling pre-installed.
+
+### Creating a Sandbox
+
+```bash
+# Automated (during onboard)
+nemoclaw onboard
+
+# Manual
+openshell sandbox create --name deep-solana --from openclaw
+```
+
+### What's Inside
+
+The sandbox container includes:
+- **Solana CLI v2.2.2** — Full Solana toolchain
+- **helius-cli** — Helius RPC direct access
+- **OpenClaw 2026.3.x** — Agent framework
+- **Python 3.13** — For custom scripts
+- **Node.js 20+** — For bot runtimes
+- **43 DeFi persona JSONs** — Agent personalities
+- **Pump-Fun SDK** — Token operations
+- **Privy wallet skill** — Encrypted key management
+
+### Sandbox Network Policies
+
+Every outbound request from the sandbox is governed by policy. Pre-configured presets:
+
+| Preset | Endpoints Allowed |
+|---|---|
+| `solana-rpc` | Solana mainnet/devnet/testnet, Helius, Alchemy, QuikNode |
+| `pumpfun` | pump.fun APIs, Jupiter aggregator, DexScreener |
+| `privy` | Privy auth + wallet + policy APIs |
+| `telegram` | Telegram Bot API |
+| `ollama` | Local Ollama on `host.openshell.internal:11434` |
+| `npm` | npm registry |
+| `pypi` | Python package index |
 
 ---
 
@@ -248,36 +313,42 @@ helius-cli                         # Helius RPC tools
 ## 🏗️ Architecture
 
 ```
-                        ┌──────────────────────┐
-                        │   nemoclaw CLI       │
-                        │   (host machine)     │
-                        └─────────┬────────────┘
-                                  │
-                    ┌─────────────▼─────────────┐
-                    │   OpenShell Gateway        │
-                    │   (network policy engine)  │
-                    └─────────────┬─────────────┘
-                                  │
-        ┌─────────────────────────▼──────────────────────────┐
-        │              Sandbox Container                      │
-        │         (Landlock + seccomp + netns)                │
-        │                                                     │
-        │  ┌─────────────┐ ┌──────────────┐ ┌─────────────┐ │
-        │  │ Telegram Bot │ │ Solana Bridge│ │  WS Relay   │ │
-        │  │  (monitor)   │ │ (narration)  │ │ (launches)  │ │
-        │  └──────┬───────┘ └──────┬───────┘ └──────┬──────┘ │
-        │         └────────┬───────┘                │        │
-        │                  ▼                        │        │
-        │         ┌────────────────┐                │        │
-        │         │  OpenClaw Agent │◄───────────────┘        │
-        │         │                │                          │
-        │         │  ├─ 8bit/DeepSolana (Ollama, auto-pulled)  │
-        │         │  ├─ Privy Wallet Skill (sign/send/policy) │
-        │         │  ├─ Pump-Fun SDK (@nirholas/pump-sdk)     │
-        │         │  ├─ 43 DeFi Agent Personas                │
-        │         │  └─ Solana CLI + helius-cli                │
-        │         └────────────────┘                          │
-        └─────────────────────────────────────────────────────┘
+                                 ┌──────────────────────┐
+                                 │   nemoclaw CLI       │
+                                 │   (host machine)     │
+                                 └─────────┬────────────┘
+                                           │
+                     ┌─────────────────────▼─────────────────────┐
+                     │          OpenShell Gateway                  │
+                     │     (network policy + inference routing)   │
+                     └─────────────────────┬─────────────────────┘
+                                           │
+           ┌───────────────────────────────▼──────────────────────────────┐
+           │                   Sandbox Container                          │
+           │              (Landlock + seccomp + netns)                    │
+           │                                                              │
+           │   ┌──────────────┐ ┌───────────────┐ ┌──────────────┐      │
+           │   │ Telegram Bot  │ │ Solana Bridge  │ │  WS Relay    │      │
+           │   │  (monitor)    │ │ (narration)    │ │ (launches)   │      │
+           │   └──────┬────────┘ └──────┬────────┘ └──────┬───────┘      │
+           │          └────────┬────────┘                  │              │
+           │                   ▼                           │              │
+           │          ┌─────────────────┐                  │              │
+           │          │  OpenClaw Agent  │◄─────────────────┘              │
+           │          │                 │                                  │
+           │          │  ├─ 8bit/DeepSolana  (Ollama — auto-pulled)       │
+           │          │  ├─ Privy Wallet Skill (sign / send / policy)     │
+           │          │  ├─ Pump-Fun SDK     (@nirholas/pump-sdk)         │
+           │          │  ├─ 43 DeFi Agent Personas                        │
+           │          │  └─ Solana CLI + helius-cli                        │
+           │          └─────────────────┘                                  │
+           └───────────────────────────────────────────────────────────────┘
+                                           │
+                     ┌─────────────────────▼─────────────────────┐
+                     │                 Ollama                      │
+                     │     8bit/DeepSolana (localhost:11434)       │
+                     │     Solana-tuned LLM — runs on CPU or GPU  │
+                     └────────────────────────────────────────────┘
 ```
 
 ---
@@ -295,17 +366,6 @@ helius-cli                         # Helius RPC tools
 | **Wallet** | Private keys managed by Privy, never in sandbox | Always |
 | **Credentials** | `~/.nemoclaw/` with mode 600 | Always |
 | **Pre-commit** | Git hook blocks API keys, tokens, secret files | On commit |
-
-### Network Policy Presets
-
-| Preset | What it allows |
-|---|---|
-| `solana-rpc` | Solana mainnet/devnet/testnet, Helius, Alchemy, QuikNode |
-| `pumpfun` | pump.fun APIs, Jupiter aggregator, DexScreener |
-| `privy` | Privy auth + wallet + policy APIs |
-| `telegram` | Telegram Bot API |
-| `npm` | npm registry |
-| `pypi` | Python package index |
 
 ### Secret Protection
 
@@ -364,7 +424,7 @@ Inside the sandbox, the agent has **local access** to the full Pump-Fun corpus �
 
 ```bash
 # Clone
-git clone https://github.com/NVIDIA/NemoClaw.git
+git clone https://github.com/x402agent/NemoClaw.git
 cd NemoClaw
 npm install
 
@@ -380,13 +440,9 @@ npm run pack:check
 # Full release check (build + test + pack)
 npm run release:check
 
-# Publish with a fresh npm token
-export NPM_TOKEN=<fresh-token>
-printf "//registry.npmjs.org/:_authToken=${NPM_TOKEN}\n" > ~/.npmrc
+# Publish
 npm run publish:public
 ```
-
-If an npm token was pasted into chat, terminal scrollback, or a commit by mistake, revoke it in npm first and mint a fresh publish token before running the publish step.
 
 ---
 
@@ -405,10 +461,8 @@ If an npm token was pasted into chat, terminal scrollback, or a commit by mistak
 | [Swarm Bot](./Pump-Fun/swarm-bot) | Multi-bot dashboard: sniper, momentum, market-maker strategies |
 | [WebSocket Server](./Pump-Fun/websocket-server) | Real-time Pump launch relay |
 | [Protocol Docs](./Pump-Fun/docs) | SDK reference, deployment guides, architecture |
-| [Agent Prompts](./Pump-Fun/pumpkit/agent-prompts) | PumpKit-specific build prompts |
-| [Agent Tasks](./Pump-Fun/agent-tasks) | Scoped deliverable task specs |
 
-### NVIDIA Docs
+### Reference Docs
 
 - [CLI Commands Reference](./docs/reference/commands.md)
 - [Inference Profiles](./docs/reference/inference-profiles.md)
