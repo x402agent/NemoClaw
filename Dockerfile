@@ -5,10 +5,20 @@ FROM node:22-slim
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
         python3 python3-pip python3-venv \
         curl git ca-certificates \
-        iproute2 \
+        iproute2 bzip2 \
     && rm -rf /var/lib/apt/lists/*
+
+# Install Solana CLI tools (validator, keygen, spl-token)
+RUN SOLANA_VERSION="v2.2.2" && \
+    sh -c "$(curl -sSfL https://release.anza.xyz/${SOLANA_VERSION}/install)" && \
+    ln -sf /root/.local/share/solana/install/active_release/bin/solana /usr/local/bin/solana && \
+    ln -sf /root/.local/share/solana/install/active_release/bin/solana-test-validator /usr/local/bin/solana-test-validator && \
+    ln -sf /root/.local/share/solana/install/active_release/bin/solana-keygen /usr/local/bin/solana-keygen && \
+    ln -sf /root/.local/share/solana/install/active_release/bin/spl-token /usr/local/bin/spl-token || \
+    echo 'WARN: Solana CLI install skipped (may not be available for this arch)'
 
 # Create sandbox user (matches OpenShell convention)
 RUN groupadd -r sandbox && useradd -r -g sandbox -d /sandbox -s /bin/bash sandbox \
@@ -26,10 +36,44 @@ COPY nemoclaw/dist/ /opt/nemoclaw/dist/
 COPY nemoclaw/openclaw.plugin.json /opt/nemoclaw/
 COPY nemoclaw/package.json /opt/nemoclaw/
 COPY nemoclaw-blueprint/ /opt/nemoclaw-blueprint/
+COPY Pump-Fun/agent-app/ /opt/pump-fun/agent-app/
+COPY Pump-Fun/agent-tasks/ /opt/pump-fun/agent-tasks/
+COPY Pump-Fun/docs/ /opt/pump-fun/docs/
+COPY Pump-Fun/packages/defi-agents/agents-manifest.json /opt/pump-fun/defi-agents/agents-manifest.json
+COPY Pump-Fun/packages/defi-agents/locales/ /opt/pump-fun/defi-agents/locales/
+COPY Pump-Fun/packages/defi-agents/docs/ /opt/pump-fun/defi-agents/docs/
+COPY Pump-Fun/packages/defi-agents/README.md /opt/pump-fun/defi-agents/README.md
+COPY Pump-Fun/packages/defi-agents/llms.txt /opt/pump-fun/defi-agents/llms.txt
+COPY Pump-Fun/packages/defi-agents/llms-full.txt /opt/pump-fun/defi-agents/llms-full.txt
+COPY Pump-Fun/packages/defi-agents/src/ /opt/pump-fun/defi-agents/src/
+COPY Pump-Fun/pumpkit/agent-prompts/ /opt/pump-fun/agent-prompts/
+COPY Pump-Fun/telegram-bot/ /opt/pump-fun/telegram-bot/
+COPY Pump-Fun/swarm-bot/ /opt/pump-fun/swarm-bot/
+COPY Pump-Fun/websocket-server/ /opt/pump-fun/websocket-server/
+COPY Pump-Fun/tools/ /opt/pump-fun/tools/
+COPY Pump-Fun/x402/ /opt/pump-fun/x402/
+COPY Pump-Fun/src/ /opt/pump-fun/sdk/src/
+COPY pump-fun-skills-main/tokenized-agents/ /opt/pump-fun/tokenized-agents-skill/
 
 # Install runtime dependencies only (no devDependencies, no build step)
 WORKDIR /opt/nemoclaw
 RUN npm install --omit=dev
+
+# Install Pump-Fun Solana agent dependencies so the tracker bot can run
+WORKDIR /opt/pump-fun/agent-app
+RUN npm install
+
+WORKDIR /opt/pump-fun/telegram-bot
+RUN npm install
+
+WORKDIR /opt/pump-fun/swarm-bot
+RUN npm install
+
+WORKDIR /opt/pump-fun/websocket-server
+RUN npm install
+
+WORKDIR /opt/pump-fun/x402
+RUN npm install
 
 # Set up blueprint for local resolution
 RUN mkdir -p /sandbox/.nemoclaw/blueprints/0.1.0 \
@@ -37,14 +81,67 @@ RUN mkdir -p /sandbox/.nemoclaw/blueprints/0.1.0 \
 
 # Copy startup script
 COPY scripts/nemoclaw-start.sh /usr/local/bin/nemoclaw-start
+COPY scripts/nemoclaw-solana-agent.sh /usr/local/bin/nemoclaw-solana-agent
+COPY scripts/nemoclaw-payment-app.sh /usr/local/bin/nemoclaw-payment-app
+COPY scripts/nemoclaw-telegram-bot.sh /usr/local/bin/nemoclaw-telegram-bot
+COPY scripts/nemoclaw-swarm-bot.sh /usr/local/bin/nemoclaw-swarm-bot
+COPY scripts/nemoclaw-websocket-server.sh /usr/local/bin/nemoclaw-websocket-server
 RUN chmod +x /usr/local/bin/nemoclaw-start
+RUN chmod +x /usr/local/bin/nemoclaw-solana-agent
+RUN chmod +x /usr/local/bin/nemoclaw-payment-app
+RUN chmod +x /usr/local/bin/nemoclaw-telegram-bot
+RUN chmod +x /usr/local/bin/nemoclaw-swarm-bot
+RUN chmod +x /usr/local/bin/nemoclaw-websocket-server
 
 WORKDIR /sandbox
 USER sandbox
 
-# Pre-create OpenClaw directories
+# Pre-create OpenClaw directories and Privy skill
 RUN mkdir -p /sandbox/.openclaw/agents/main/agent \
-    && chmod 700 /sandbox/.openclaw
+    && mkdir -p /sandbox/.openclaw/workspace/skills/privy \
+    && mkdir -p /sandbox/.nemoclaw/wallets \
+    && chmod 700 /sandbox/.openclaw \
+    && chmod 700 /sandbox/.nemoclaw/wallets
+
+# Write Privy agentic wallet skill for OpenClaw
+RUN cat > /sandbox/.openclaw/workspace/skills/privy/SKILL.md <<'PRIVY_SKILL'
+---
+name: privy-agentic-wallets
+description: |
+  Create and manage Solana agentic wallets via Privy server wallets.
+  Use when the agent needs its own wallet to sign transactions,
+  send SOL/USDC, or interact with on-chain programs autonomously.
+---
+
+## Privy Agentic Wallet Skill
+
+This skill enables autonomous wallet operations via Privy server wallets.
+
+### Environment Variables
+- `PRIVY_APP_ID` — Your Privy app ID (from dashboard.privy.io)
+- `PRIVY_APP_SECRET` — Your Privy app secret
+
+### Capabilities
+- **Create wallets**: Solana server wallets for autonomous signing
+- **Attach policies**: Spending limits, chain restrictions, contract allowlists
+- **Sign transactions**: Agent can sign and submit transactions within policy bounds
+- **No local keys**: Private keys never leave Privy infrastructure
+
+### Create a Wallet
+```bash
+curl -X POST https://auth.privy.io/api/v1/wallets \
+  -H "Authorization: Basic $(echo -n $PRIVY_APP_ID:$PRIVY_APP_SECRET | base64)" \
+  -H "privy-app-id: $PRIVY_APP_ID" \
+  -H "Content-Type: application/json" \
+  -d '{"chain_type": "solana"}'
+```
+
+### Security Rules
+- NEVER log or expose PRIVY_APP_SECRET
+- Start with restrictive policies, loosen over time
+- Only fund wallets with amounts you can afford to lose
+- Always verify transactions match intended parameters
+PRIVY_SKILL
 
 # Write openclaw.json: set nvidia as default provider, route through
 # inference.local (OpenShell gateway proxy). No API key needed here —

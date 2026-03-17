@@ -11,10 +11,13 @@ const registry = require("./registry");
 const nim = require("./nim");
 const policies = require("./policies");
 const { checkCgroupConfig } = require("./preflight");
+const solana = require("./solana");
 const HOST_GATEWAY_URL = "http://host.openshell.internal";
 const EXPERIMENTAL = process.env.NEMOCLAW_EXPERIMENTAL === "1";
 
 // ── Helpers ──────────────────────────────────────────────────────
+
+const TOTAL_STEPS = 9;
 
 function step(n, total, msg) {
   console.log("");
@@ -46,10 +49,20 @@ function installOpenshell() {
   return isOpenshellInstalled();
 }
 
+function copyIntoBuildContext(buildCtx, relativePath) {
+  const source = path.join(ROOT, relativePath);
+  const target = path.join(buildCtx, relativePath);
+  if (!fs.existsSync(source)) {
+    return;
+  }
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  run(`cp -r "${source}" "${target}"`);
+}
+
 // ── Step 1: Preflight ────────────────────────────────────────────
 
 async function preflight() {
-  step(1, 7, "Preflight checks");
+  step(1, TOTAL_STEPS, "Preflight checks");
 
   // Docker
   if (!isDockerRunning()) {
@@ -107,7 +120,7 @@ async function preflight() {
 // ── Step 2: Gateway ──────────────────────────────────────────────
 
 async function startGateway(gpu) {
-  step(2, 7, "Starting OpenShell gateway");
+  step(2, TOTAL_STEPS, "Starting OpenShell gateway");
 
   // Destroy old gateway
   run("openshell gateway destroy -g nemoclaw 2>/dev/null || true", { ignoreError: true });
@@ -148,7 +161,7 @@ async function startGateway(gpu) {
 // ── Step 3: Sandbox ──────────────────────────────────────────────
 
 async function createSandbox(gpu) {
-  step(3, 7, "Creating sandbox");
+  step(3, TOTAL_STEPS, "Creating sandbox");
 
   const nameAnswer = await prompt("  Sandbox name (lowercase, numbers, hyphens) [my-assistant]: ");
   const sandboxName = (nameAnswer || "my-assistant").trim().toLowerCase();
@@ -183,6 +196,20 @@ async function createSandbox(gpu) {
   run(`cp -r "${path.join(ROOT, "nemoclaw")}" "${buildCtx}/nemoclaw"`);
   run(`cp -r "${path.join(ROOT, "nemoclaw-blueprint")}" "${buildCtx}/nemoclaw-blueprint"`);
   run(`cp -r "${path.join(ROOT, "scripts")}" "${buildCtx}/scripts"`);
+  [
+    path.join("Pump-Fun", "agent-app"),
+    path.join("Pump-Fun", "agent-tasks"),
+    path.join("Pump-Fun", "docs"),
+    path.join("Pump-Fun", "src"),
+    path.join("Pump-Fun", "packages", "defi-agents"),
+    path.join("Pump-Fun", "pumpkit", "agent-prompts"),
+    path.join("Pump-Fun", "telegram-bot"),
+    path.join("Pump-Fun", "swarm-bot"),
+    path.join("Pump-Fun", "websocket-server"),
+    path.join("Pump-Fun", "tools"),
+    path.join("Pump-Fun", "x402"),
+    path.join("pump-fun-skills-main", "tokenized-agents"),
+  ].forEach((relativePath) => copyIntoBuildContext(buildCtx, relativePath));
   run(`rm -rf "${buildCtx}/nemoclaw/node_modules" "${buildCtx}/nemoclaw/src"`, { ignoreError: true });
 
   // Create sandbox (use -- echo to avoid dropping into interactive shell)
@@ -200,6 +227,12 @@ async function createSandbox(gpu) {
   const envArgs = [`CHAT_UI_URL=${chatUiUrl}`];
   if (process.env.NVIDIA_API_KEY) {
     envArgs.push(`NVIDIA_API_KEY=${process.env.NVIDIA_API_KEY}`);
+  }
+
+  // Inject Solana environment variables into the sandbox
+  const solanaEnv = solana.getSolanaEnvVars();
+  for (const [key, val] of Object.entries(solanaEnv)) {
+    if (val) envArgs.push(`${key}=${val}`);
   }
   run(`openshell sandbox create ${createArgs.join(" ")} -- env ${envArgs.join(" ")} nemoclaw-start 2>&1 | awk '/Sandbox allocated/{if(!seen){print;seen=1}next}1'`);
 
@@ -222,7 +255,7 @@ async function createSandbox(gpu) {
 // ── Step 4: NIM ──────────────────────────────────────────────────
 
 async function setupNim(sandboxName, gpu) {
-  step(4, 7, "Configuring inference (NIM)");
+  step(4, TOTAL_STEPS, "Configuring inference (NIM)");
 
   let model = null;
   let provider = "nvidia-nim";
@@ -355,7 +388,7 @@ async function setupNim(sandboxName, gpu) {
 // ── Step 5: Inference provider ───────────────────────────────────
 
 async function setupInference(sandboxName, model, provider) {
-  step(5, 7, "Setting up inference provider");
+  step(5, TOTAL_STEPS, "Setting up inference provider");
 
   if (provider === "nvidia-nim") {
     // Create nvidia-nim provider
@@ -404,7 +437,7 @@ async function setupInference(sandboxName, model, provider) {
 // ── Step 6: OpenClaw ─────────────────────────────────────────────
 
 async function setupOpenclaw(sandboxName) {
-  step(6, 7, "Setting up OpenClaw inside sandbox");
+  step(6, TOTAL_STEPS, "Setting up OpenClaw inside sandbox");
 
   // sandbox create with a command runs it inside the sandbox then exits.
   // Since the sandbox already exists, we create a throwaway connect + command
@@ -414,10 +447,217 @@ async function setupOpenclaw(sandboxName) {
   console.log("  ✓ OpenClaw gateway launched inside sandbox");
 }
 
+// ── Step 7: Solana Configuration ─────────────────────────────────
+
+async function setupSolana(sandboxName) {
+  step(7, TOTAL_STEPS, "Solana & Wallet Configuration");
+
+  // Check for existing config
+  const existing = solana.loadSolanaConfig();
+  if (existing && existing.rpcUrl) {
+    console.log(`  Existing Solana config found: ${existing.rpcUrl}`);
+    const reuse = await prompt("  Keep existing Solana configuration? [Y/n]: ");
+    if (reuse.toLowerCase() !== "n") {
+      console.log("  ✓ Keeping existing Solana configuration");
+      return existing;
+    }
+  }
+
+  // RPC URL selection
+  console.log("");
+  console.log("  Solana RPC endpoint:");
+  solana.DEFAULT_RPC_OPTIONS.forEach((o, i) => {
+    console.log(`    ${i + 1}) ${o.label} — ${o.url || '(you provide)'}`);
+  });
+  console.log("");
+
+  const rpcChoice = await prompt("  Choose RPC [1]: ");
+  const rpcIdx = parseInt(rpcChoice || "1", 10) - 1;
+  const selected = solana.DEFAULT_RPC_OPTIONS[rpcIdx] || solana.DEFAULT_RPC_OPTIONS[0];
+
+  let rpcUrl = selected.url;
+  if (selected.key === "helius") {
+    const heliusKey = await prompt("  Helius API key: ");
+    rpcUrl = `https://mainnet.helius-rpc.com/?api-key=${heliusKey.trim()}`;
+  } else if (selected.key === "custom") {
+    rpcUrl = await prompt("  Custom RPC URL: ");
+  } else if (selected.key === "local") {
+    console.log("  Will use local test-validator (localhost:8899)");
+    // Check if solana-test-validator is installed
+    if (!solana.isSolanaCliInstalled()) {
+      console.log("  ⓘ solana-test-validator not found on host.");
+      console.log("    It's available inside the sandbox via Solana CLI tools.");
+    }
+  }
+
+  // Test connection
+  if (rpcUrl && selected.key !== "local") {
+    console.log(`  Testing connection to ${rpcUrl.substring(0, 60)}...`);
+    if (solana.testRpcConnection(rpcUrl)) {
+      const version = solana.getSolanaClusterVersion(rpcUrl);
+      console.log(`  ✓ Connected${version ? ` (Solana ${version})` : ''}`);
+    } else {
+      console.log("  ⚠ Could not reach RPC endpoint. Continuing anyway.");
+    }
+  }
+
+  // Privy agentic wallet setup
+  console.log("");
+  const wantWallet = await prompt("  Set up Privy agentic wallet? [Y/n]: ");
+
+  let privyConfig = null;
+  let wallet = null;
+
+  if (wantWallet.toLowerCase() !== "n") {
+    const existingPrivy = solana.loadPrivyConfig();
+    if (existingPrivy && existingPrivy.appId) {
+      console.log(`  Existing Privy config found (app: ${existingPrivy.appId.substring(0, 12)}...)`);
+      const reuse = await prompt("  Keep existing Privy credentials? [Y/n]: ");
+      if (reuse.toLowerCase() !== "n") {
+        privyConfig = existingPrivy;
+      }
+    }
+
+    if (!privyConfig) {
+      console.log("  Get credentials from: https://dashboard.privy.io");
+      const appId = await prompt("  Privy App ID: ");
+      const appSecret = await prompt("  Privy App Secret: ");
+
+      if (appId && appSecret) {
+        privyConfig = {
+          appId: appId.trim(),
+          appSecret: appSecret.trim(),
+          configuredAt: new Date().toISOString(),
+        };
+        solana.savePrivyConfig(privyConfig);
+        console.log("  ✓ Privy credentials saved");
+      } else {
+        console.log("  Skipping Privy wallet setup.");
+      }
+    }
+
+    // Create wallet if we have credentials
+    if (privyConfig) {
+      const createWallet = await prompt("  Create a new Solana wallet now? [Y/n]: ");
+      if (createWallet.toLowerCase() !== "n") {
+        console.log("  Creating Solana agentic wallet via Privy...");
+        wallet = await solana.createPrivyWallet({ chainType: "solana" });
+        if (wallet) {
+          console.log(`  ✓ Wallet created: ${wallet.address}`);
+          console.log("  ⓘ Private keys are managed by Privy — never stored locally.");
+
+          // Create default spending policy
+          console.log("  Creating default spending policy (max 0.1 SOL per tx)...");
+          const policy = await solana.createPrivyPolicy({
+            name: "NemoClaw Default",
+            maxLamports: 100_000_000,
+          });
+          if (policy) {
+            console.log(`  ✓ Policy created: ${policy.name || policy.id}`);
+          }
+        }
+      }
+    }
+  }
+
+  // Pump-Fun agent token config
+  console.log("");
+  let agentTokenMint = process.env.AGENT_TOKEN_MINT_ADDRESS || null;
+  let developerWallet = process.env.DEVELOPER_WALLET || (wallet ? wallet.address : null);
+
+  if (!agentTokenMint) {
+    const wantPump = await prompt("  Configure Pump-Fun tokenized agent? [y/N]: ");
+    if (wantPump.toLowerCase() === "y") {
+      agentTokenMint = await prompt("  Agent token mint address (from pump.fun): ");
+      if (!developerWallet) {
+        developerWallet = await prompt("  Developer wallet address: ");
+      }
+    }
+  }
+
+  // Save config
+  const config = {
+    rpcUrl: rpcUrl || "https://rpc.solanatracker.io/public",
+    rpcProvider: selected.key,
+    agentTokenMint: agentTokenMint ? agentTokenMint.trim() : null,
+    developerWallet: developerWallet ? developerWallet.trim() : null,
+    currencyMint: "So11111111111111111111111111111111111111112",
+    testValidator: selected.key === "local",
+    privyConfigured: !!privyConfig,
+    walletAddress: wallet ? wallet.address : null,
+    configuredAt: new Date().toISOString(),
+  };
+  solana.saveSolanaConfig(config);
+
+  // Set env so sandbox creation picks it up
+  process.env.SOLANA_RPC_URL = config.rpcUrl;
+  if (config.agentTokenMint) process.env.AGENT_TOKEN_MINT_ADDRESS = config.agentTokenMint;
+  if (config.developerWallet) process.env.DEVELOPER_WALLET = config.developerWallet;
+
+  registry.updateSandbox(sandboxName, {
+    solanaRpcUrl: config.rpcUrl,
+    solanaWallet: config.walletAddress,
+    pumpfunMint: config.agentTokenMint,
+  });
+
+  console.log("  ✓ Solana configuration saved");
+  return config;
+}
+
+// ── Step 8: Test Validator ───────────────────────────────────────
+
+async function setupTestValidator(sandboxName, solConfig) {
+  step(8, TOTAL_STEPS, "Solana test-validator (optional)");
+
+  if (!solConfig || !solConfig.testValidator) {
+    console.log("  Using remote RPC — skipping local test-validator.");
+    return;
+  }
+
+  if (!solana.isSolanaCliInstalled()) {
+    console.log("  solana-test-validator not installed on host.");
+    console.log("  You can run it inside the sandbox instead:");
+    console.log("    nemoclaw <name> connect");
+    console.log("    solana-test-validator &");
+    return;
+  }
+
+  if (solana.isTestValidatorRunning()) {
+    console.log("  ✓ solana-test-validator already running on localhost:8899");
+    return;
+  }
+
+  const startIt = await prompt("  Start solana-test-validator on host? [Y/n]: ");
+  if (startIt.toLowerCase() === "n") {
+    console.log("  Skipping test-validator.");
+    return;
+  }
+
+  // Clone Pump programs from mainnet so tokens work locally
+  const clonePrograms = [
+    "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",   // Pump
+    "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA",   // PumpAMM
+    "pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ",   // PumpFees
+    "AgenTMiC2hvxGebTsgmsD4HHBa8WEcqGFf87iwRRxLo7",   // Agent Payments
+  ];
+
+  console.log("  Starting test-validator with cloned Pump programs...");
+  const result = solana.startTestValidator({
+    fundWallet: solConfig.walletAddress || undefined,
+    clonePrograms,
+  });
+
+  if (result) {
+    console.log(`  ✓ test-validator running (pid ${result.pid}, rpc: ${result.rpcUrl})`);
+  } else {
+    console.log("  ⚠ test-validator failed to start. Check ~/.nemoclaw/test-validator.log");
+  }
+}
+
 // ── Step 7: Policy presets ───────────────────────────────────────
 
 async function setupPolicies(sandboxName) {
-  step(7, 7, "Policy presets");
+  step(9, TOTAL_STEPS, "Policy presets");
 
   const suggestions = ["pypi", "npm"];
 
@@ -425,6 +665,26 @@ async function setupPolicies(sandboxName) {
   if (getCredential("TELEGRAM_BOT_TOKEN")) {
     suggestions.push("telegram");
     console.log("  Auto-detected: TELEGRAM_BOT_TOKEN → suggesting telegram preset");
+  }
+  // Solana is always suggested since we configure it in step 7
+  const solConfig = solana.loadSolanaConfig();
+  if (solConfig || getCredential("SOLANA_RPC_URL") || process.env.SOLANA_RPC_URL) {
+    suggestions.push("solana-rpc");
+    console.log("  Auto-detected: Solana RPC configured → suggesting solana-rpc preset");
+  }
+  if (
+    getCredential("AGENT_TOKEN_MINT_ADDRESS") || process.env.AGENT_TOKEN_MINT_ADDRESS ||
+    getCredential("DEVELOPER_WALLET") || process.env.DEVELOPER_WALLET ||
+    (solConfig && solConfig.agentTokenMint)
+  ) {
+    suggestions.push("pumpfun");
+    console.log("  Auto-detected: Pump-Fun agent env → suggesting pumpfun preset");
+  }
+  // Privy agentic wallet
+  const privyConfig = solana.loadPrivyConfig();
+  if (privyConfig || getCredential("PRIVY_APP_ID") || process.env.PRIVY_APP_ID) {
+    suggestions.push("privy");
+    console.log("  Auto-detected: Privy credentials → suggesting privy preset");
   }
   if (getCredential("SLACK_BOT_TOKEN") || process.env.SLACK_BOT_TOKEN) {
     suggestions.push("slack");
@@ -476,22 +736,36 @@ async function setupPolicies(sandboxName) {
 function printDashboard(sandboxName, model, provider) {
   const nimStat = nim.nimStatus(sandboxName);
   const nimLabel = nimStat.running ? "running" : "not running";
+  const solConfig = solana.loadSolanaConfig();
+  const wallet = solana.getDefaultWallet();
 
   let providerLabel = provider;
   if (provider === "nvidia-nim") providerLabel = "NVIDIA Cloud API";
   else if (provider === "vllm-local") providerLabel = "Local vLLM";
 
   console.log("");
-  console.log(`  ${"─".repeat(50)}`);
-  // console.log(`  Dashboard    http://localhost:18789/`);
+  console.log(`  ${"─".repeat(56)}`);
   console.log(`  Sandbox      ${sandboxName} (Landlock + seccomp + netns)`);
   console.log(`  Model        ${model} (${providerLabel})`);
   console.log(`  NIM          ${nimLabel}`);
-  console.log(`  ${"─".repeat(50)}`);
+  if (solConfig) {
+    const rpcShort = solConfig.rpcUrl.length > 40
+      ? solConfig.rpcUrl.substring(0, 37) + '...'
+      : solConfig.rpcUrl;
+    console.log(`  Solana RPC   ${rpcShort}`);
+  }
+  if (wallet) {
+    console.log(`  Wallet       ${wallet.address} (Privy)`);
+  }
+  if (solConfig && solConfig.agentTokenMint) {
+    console.log(`  Agent Token  ${solConfig.agentTokenMint}`);
+  }
+  console.log(`  ${"─".repeat(56)}`);
   console.log(`  Run:         nemoclaw ${sandboxName} connect`);
   console.log(`  Status:      nemoclaw ${sandboxName} status`);
   console.log(`  Logs:        nemoclaw ${sandboxName} logs --follow`);
-  console.log(`  ${"─".repeat(50)}`);
+  console.log(`  Solana:      nemoclaw ${sandboxName} solana-agent`);
+  console.log(`  ${"─".repeat(56)}`);
   console.log("");
 }
 
@@ -508,6 +782,8 @@ async function onboard() {
   const { model, provider } = await setupNim(sandboxName, gpu);
   await setupInference(sandboxName, model, provider);
   await setupOpenclaw(sandboxName);
+  const solConfig = await setupSolana(sandboxName);
+  await setupTestValidator(sandboxName, solConfig);
   await setupPolicies(sandboxName);
   printDashboard(sandboxName, model, provider);
 }

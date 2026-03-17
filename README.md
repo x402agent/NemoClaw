@@ -1,4 +1,4 @@
-# NVIDIA NemoClaw: OpenClaw Plugin for OpenShell
+# NVIDIA NemoClaw: Solana Pump-Fun Agent for OpenClaw + OpenShell
 
 <!-- start-badges -->
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue)](https://github.com/NVIDIA/NemoClaw/blob/main/LICENSE)
@@ -6,7 +6,7 @@
 [![Project Status](https://img.shields.io/badge/status-alpha-orange)](https://github.com/NVIDIA/NemoClaw/blob/main/docs/about/release-notes.md)
 <!-- end-badges -->
 
-NVIDIA NemoClaw is an open source stack that simplifies running [OpenClaw](https://openclaw.ai) always-on assistants safely. It installs the [NVIDIA OpenShell](https://github.com/NVIDIA/OpenShell) runtime, part of [NVIDIA Agent Toolkit](https://docs.nvidia.com/nemo/agent-toolkit/latest), a secure environment for running autonomous agents, with inference routed through [NVIDIA cloud](https://build.nvidia.com).
+NVIDIA NemoClaw is an open source stack for running sandboxed [OpenClaw](https://openclaw.ai) assistants safely on top of [NVIDIA OpenShell](https://github.com/NVIDIA/OpenShell). In this repo it is wired as a **Solana Pump-Fun agent environment**: the sandbox bundles the Pump-Fun tracker bot from [`Pump-Fun/agent-app`](./Pump-Fun/agent-app), the full Pump-Fun documentation corpus from [`Pump-Fun/docs`](./Pump-Fun/docs), and the PumpKit agent prompt/task packs so the agent starts with local Solana protocol context instead of a blank workspace.
 
 > **Alpha software**
 > 
@@ -22,7 +22,7 @@ NVIDIA NemoClaw is an open source stack that simplifies running [OpenClaw](https
 
 <!-- start-quickstart-guide -->
 
-Follow these steps to get started with NemoClaw and your first sandboxed OpenClaw agent.
+Follow these steps to get started with NemoClaw as a sandboxed Solana/Pump-Fun agent.
 
 :::{note}
 NemoClaw currently requires a fresh installation of OpenClaw.
@@ -39,10 +39,10 @@ Check the prerequisites before you start to ensure you have the necessary softwa
 - Docker installed and running
 - [NVIDIA OpenShell](https://github.com/NVIDIA/OpenShell) installed
 
-### Install NemoClaw and Onboard OpenClaw Agent
+### Install NemoClaw and Onboard the Sandbox
 
 Download and run the installer script.
-The script installs Node.js if it is not already present, then runs the guided onboard wizard to create a sandbox, configure inference, and apply security policies.
+The script installs Node.js if it is not already present, then runs the guided onboard wizard to create a sandbox, configure inference, and apply security policies. During onboarding, NemoClaw can now suggest `solana-rpc`, `pumpfun`, and `telegram` presets when the relevant environment variables are present.
 
 ```console
 $ curl -fsSL https://nvidia.com/nemoclaw.sh | bash
@@ -62,6 +62,26 @@ Logs:        nemoclaw my-assistant logs --follow
 
 [INFO]  === Installation complete ===
 ```
+
+### Run the Solana Agent
+
+Set the Solana/Pump-Fun runtime variables on the host:
+
+```console
+$ export SOLANA_RPC_URL=https://api.mainnet-beta.solana.com
+$ export AGENT_TOKEN_MINT_ADDRESS=<pump-token-mint>
+$ export DEVELOPER_WALLET=<developer-wallet>
+$ export TELEGRAM_BOT_TOKEN=<botfather-token>
+$ export TELEGRAM_NOTIFY_CHAT_IDS=<optional-comma-separated-chat-ids>
+```
+
+Start the bundled Pump-Fun tracker bot inside the sandbox:
+
+```console
+$ nemoclaw my-assistant solana-agent
+```
+
+The command launches the bot from [`Pump-Fun/agent-app`](./Pump-Fun/agent-app) inside the sandbox and passes the host-side Solana environment through to the process.
 
 ### Chat with the Agent
 
@@ -89,19 +109,31 @@ Use the OpenClaw CLI to send a single message and print the response:
 sandbox@my-assistant:~$ openclaw agent --agent main --local -m "hello" --session-id test
 ```
 
+### Pump-Fun Knowledge Workspace
+
+Inside the sandbox, OpenClaw's workspace is preloaded with the Pump-Fun corpus:
+
+- `~/.openclaw/workspace/AGENTS.md` injects Pump-Fun/Solana instructions into every session
+- `~/.openclaw/workspace/pumpfun/docs` contains the bundled documentation set
+- `~/.openclaw/workspace/pumpfun/agent-app` contains the tracker bot code
+- `~/.openclaw/workspace/pumpfun/agent-prompts` contains PumpKit build prompts
+- `~/.openclaw/workspace/pumpfun/agent-tasks` contains task specs and deliverable prompts
+
+This means the agent can inspect the local Pump-Fun docs, official docs, prompts, and implementation code without fetching them externally.
+
 <!-- end-quickstart-guide -->
 
 ---
 
 ## How It Works
 
-NemoClaw installs the NVIDIA OpenShell runtime and Nemotron models, then uses a versioned blueprint to create a sandboxed environment where every network request, file access, and inference call is governed by declarative policy. The `nemoclaw` CLI orchestrates the full stack: OpenShell gateway, sandbox, inference provider, and network policy.
+NemoClaw installs the NVIDIA OpenShell runtime and Nemotron models, then uses a versioned blueprint to create a sandboxed environment where every network request, file access, and inference call is governed by declarative policy. In this repo, the sandbox also ships the Pump-Fun code and docs corpus so the `nemoclaw` CLI can orchestrate both the OpenShell runtime and a Solana-specific agent workspace.
 
 | Component        | Role                                                                                      |
 |------------------|-------------------------------------------------------------------------------------------|
 | **Plugin**       | TypeScript CLI commands for launch, connect, status, and logs.                            |
 | **Blueprint**    | Versioned Python artifact that orchestrates sandbox creation, policy, and inference setup. |
-| **Sandbox**      | Isolated OpenShell container running OpenClaw with policy-enforced egress and filesystem.  |
+| **Sandbox**      | Isolated OpenShell container running OpenClaw, the Pump-Fun tracker bot, and a local Pump-Fun knowledge workspace. |
 | **Inference**    | NVIDIA cloud model calls, routed through the OpenShell gateway, transparent to the agent.  |
 
 The blueprint lifecycle follows four stages: resolve the artifact, verify its digest, plan the resources, and apply through the OpenShell CLI.
@@ -148,6 +180,7 @@ Run these on the host to set up, connect to, and manage sandboxes.
 | `nemoclaw onboard`                  | Interactive setup wizard: gateway, providers, sandbox. |
 | `nemoclaw deploy <instance>`         | Deploy to a remote GPU instance through Brev.          |
 | `nemoclaw <name> connect`            | Open an interactive shell inside the sandbox.          |
+| `nemoclaw <name> solana-agent`       | Run the bundled Pump-Fun tracker bot inside the sandbox. |
 | `openshell term`                     | Launch the OpenShell TUI for monitoring and approvals. |
 | `nemoclaw start` / `stop` / `status` | Manage auxiliary services (Telegram bridge, tunnel).   |
 
@@ -171,7 +204,12 @@ See the full [CLI reference](https://docs.nvidia.com/nemoclaw/latest/reference/c
 
 ## Learn More
 
-Refer to the documentation for more information on NemoClaw.
+Refer to the documentation for more information on NemoClaw and the bundled Pump-Fun stack.
+
+- [Pump-Fun app code](./Pump-Fun/agent-app): Solana tracker bot and payment-gated app
+- [Pump-Fun docs](./Pump-Fun/docs): local protocol, SDK, deployment, and architecture docs
+- [PumpKit agent prompts](./Pump-Fun/pumpkit/agent-prompts): build prompts for extending the agent
+- [Pump-Fun agent tasks](./Pump-Fun/agent-tasks): scoped task prompts and deliverables
 
 - [Overview](https://docs.nvidia.com/nemoclaw/latest/about/overview.html): what NemoClaw does and how it fits together
 - [How It Works](https://docs.nvidia.com/nemoclaw/latest/about/how-it-works.html): plugin, blueprint, and sandbox lifecycle

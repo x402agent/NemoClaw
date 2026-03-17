@@ -14,6 +14,86 @@ set -euo pipefail
 NEMOCLAW_CMD=("$@")
 CHAT_UI_URL="${CHAT_UI_URL:-http://127.0.0.1:18789}"
 PUBLIC_PORT=18789
+WORKSPACE_ROOT="${HOME:-/sandbox}/.openclaw/workspace"
+PUMPFUN_ROOT="/opt/pump-fun"
+SOLANA_RPC_URL="${SOLANA_RPC_URL:-https://mainnet.helius-rpc.com/?api-key=6aaff09d-22ed-4300-80ea-d6a41f67ff6e}"
+
+write_workspace_prompts() {
+  mkdir -p "${WORKSPACE_ROOT}/pumpfun"
+
+  ln -snf "${PUMPFUN_ROOT}/docs" "${WORKSPACE_ROOT}/pumpfun/docs"
+  ln -snf "${PUMPFUN_ROOT}/agent-prompts" "${WORKSPACE_ROOT}/pumpfun/agent-prompts"
+  ln -snf "${PUMPFUN_ROOT}/agent-tasks" "${WORKSPACE_ROOT}/pumpfun/agent-tasks"
+  ln -snf "${PUMPFUN_ROOT}/agent-app" "${WORKSPACE_ROOT}/pumpfun/agent-app"
+
+  cat > "${WORKSPACE_ROOT}/AGENTS.md" <<'EOF'
+# Pump-Fun Solana Agent Workspace
+
+This OpenClaw workspace is a **Solana autonomous developer agent** with built-in
+Pump.fun SDK, tokenized agent payments, 44 DeFi agent personas, and an encrypted
+Privy agentic wallet.
+
+Core behavior:
+- Treat `pumpfun/docs/` as the primary local documentation corpus for protocol behavior, APIs, architecture, deployment, troubleshooting, and roadmap questions.
+- Treat `pumpfun/docs/pump-official/` and `pumpfun/docs/pump-public-docs/` as authoritative references for official Pump program behavior and terminology.
+- Use `pumpfun/agent-app/` as the implementation reference for the bundled Solana tracker bot.
+- Use `pumpfun/sdk/` to access the Pump-Fun SDK source (`@nirholas/pump-sdk`) for token creation, bonding curve operations, AMM pools, and fee management.
+- Use `pumpfun/defi-agents/personas/` to load any of the 44 DeFi agent persona JSONs for specialized capabilities.
+- Use `pumpfun/tokenized-agents-skill/` for the `@pump-fun/agent-payments-sdk` integration guide.
+- Use `pumpfun/agent-prompts/` and `pumpfun/agent-tasks/` as scaffolding and design references when extending or refactoring the Solana agent.
+- Before proposing Pump.fun transaction logic, fee logic, or monitoring logic, read the relevant local docs first instead of improvising.
+
+Solana capabilities:
+- `solana` CLI for config, keygen, deploy, transfer
+- `solana-test-validator` for local development (clones Pump programs from mainnet)
+- `spl-token` for SPL token operations
+- Privy agentic wallet for secure, policy-governed transaction signing
+- Full Pump-Fun SDK for token creation, trading, and fee management
+
+High-value local docs:
+- `pumpfun/docs/vision.md`
+- `pumpfun/docs/ecosystem.md`
+- `pumpfun/docs/getting-started.md`
+- `pumpfun/docs/api-reference.md`
+- `pumpfun/docs/architecture.md`
+- `pumpfun/docs/end-to-end-workflow.md`
+- `pumpfun/docs/rpc-best-practices.md`
+- `pumpfun/docs/security.md`
+- `pumpfun/docs/token-incentives.md`
+- `pumpfun/docs/channel-bot-architecture.md`
+
+When working on the bundled tracker bot:
+- Start with `pumpfun/agent-app/src/bot/`.
+- Preserve Solana addresses and discriminators exactly as documented.
+- Prefer the local docs and code over generic Solana advice when they conflict.
+EOF
+
+  cat > "${WORKSPACE_ROOT}/pumpfun/README.md" <<'EOF'
+# Pump-Fun Corpus
+
+Bundled local references for the Solana NemoClaw environment:
+
+- `docs/`: Pump-Fun documentation corpus, including architecture, API reference, deployment, analytics, troubleshooting, roadmap, and official/public protocol docs.
+- `sdk/`: Pump-Fun SDK source code (`@nirholas/pump-sdk`) — bonding curve math, AMM pools, fee sharing, token incentives.
+- `agent-app/`: Pump-Fun tracker bot and payment-gated app code used as the baseline Solana agent implementation.
+- `defi-agents/personas/`: 44 DeFi agent persona JSON definitions — whale watcher, yield farmer, smart contract auditor, etc.
+- `tokenized-agents-skill/`: Full `@pump-fun/agent-payments-sdk` integration guide (SKILL.md).
+- `agent-prompts/`: build and refactor prompts for PumpKit agent workflows.
+- `agent-tasks/`: standalone task specs describing parallel deliverables and expected bot/docs outputs.
+
+Suggested reading order for new work:
+1. `docs/vision.md`
+2. `docs/ecosystem.md`
+3. `docs/architecture.md`
+4. `docs/api-reference.md`
+5. `docs/end-to-end-workflow.md`
+6. `docs/rpc-best-practices.md`
+7. `sdk/src/sdk.ts` (core SDK)
+8. `tokenized-agents-skill/SKILL.md`
+9. `agent-app/src/bot/index.ts`
+10. `agent-app/src/bot/monitor.ts`
+EOF
+}
 
 fix_openclaw_config() {
   python3 - <<'PYCFG'
@@ -172,6 +252,43 @@ openclaw models set nvidia/nemotron-3-super-120b-a12b > /dev/null 2>&1 || true
 write_auth_profile
 export CHAT_UI_URL PUBLIC_PORT
 fix_openclaw_config
+write_workspace_prompts
+
+# ── Solana CLI configuration ──────────────────────────────────────
+if command -v solana &>/dev/null; then
+  echo "[solana] Configuring Solana CLI..."
+  solana config set --url "${SOLANA_RPC_URL}" 2>/dev/null || true
+  echo "[solana] RPC: ${SOLANA_RPC_URL}"
+
+  # Link SDK source and DeFi agent personas into workspace
+  ln -snf "${PUMPFUN_ROOT}/sdk" "${WORKSPACE_ROOT}/pumpfun/sdk"
+  ln -snf "${PUMPFUN_ROOT}/defi-agents/personas" "${WORKSPACE_ROOT}/pumpfun/defi-agents"
+  ln -snf "${PUMPFUN_ROOT}/tokenized-agents-skill" "${WORKSPACE_ROOT}/pumpfun/tokenized-agents-skill"
+fi
+
+# ── Privy wallet credentials ──────────────────────────────────────
+if [ -n "${PRIVY_APP_ID:-}" ] && [ -n "${PRIVY_APP_SECRET:-}" ]; then
+  echo "[privy] Injecting Privy wallet credentials into OpenClaw config..."
+  python3 - <<'PYPRIVY'
+import json, os
+home = os.environ.get('HOME', '/sandbox')
+config_path = os.path.join(home, '.openclaw', 'openclaw.json')
+cfg = {}
+if os.path.exists(config_path):
+    with open(config_path) as f:
+        cfg = json.load(f)
+cfg.setdefault('env', {}).setdefault('vars', {}).update({
+    'PRIVY_APP_ID': os.environ['PRIVY_APP_ID'],
+    'PRIVY_APP_SECRET': os.environ['PRIVY_APP_SECRET'],
+    'SOLANA_RPC_URL': os.environ.get('SOLANA_RPC_URL', ''),
+})
+with open(config_path, 'w') as f:
+    json.dump(cfg, f, indent=2)
+os.chmod(config_path, 0o600)
+PYPRIVY
+  echo "[privy] Privy credentials configured for agentic wallet access"
+fi
+
 openclaw plugins install /opt/nemoclaw > /dev/null 2>&1 || true
 
 if [ ${#NEMOCLAW_CMD[@]} -gt 0 ]; then

@@ -1,0 +1,45 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Network policy preset: Privy agentic wallet APIs.
+# Allows the sandbox to create wallets, attach policies,
+# and sign/submit transactions via Privy server wallets.
+
+preset:
+  name: privy
+  description: "Privy — agentic wallet creation, policies, and transaction signing"
+
+network_policies:
+  privy_api:
+    name: privy_api
+    endpoints:
+      # Privy authentication and wallet API
+      - host: auth.privy.io
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        tls: terminate
+        rules:
+          - allow: { method: GET, path: "/api/v1/**" }
+          - allow: { method: POST, path: "/api/v1/**" }
+          - allow: { method: PUT, path: "/api/v1/**" }
+          - allow: { method: PATCH, path: "/api/v1/**" }
+          - allow: { method: DELETE, path: "/api/v1/**" }
+
+      # Privy dashboard (for credential verification)
+      - host: dashboard.privy.io
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        tls: terminate
+        rules:
+          - allow: { method: GET, path: "/**" }
+
+      # Privy RPC proxy (transaction submission)
+      - host: rpc.privy.io
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        tls: terminate
+        rules:
+          - allow: { method: POST, path: "/**" }

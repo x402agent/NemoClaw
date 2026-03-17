@@ -26,6 +26,10 @@ const GLOBAL_COMMANDS = new Set([
   "help", "--help", "-h",
 ]);
 
+function shellQuote(value) {
+  return `'${String(value).replace(/'/g, `'\\''`)}'`;
+}
+
 // ── Commands ─────────────────────────────────────────────────────
 
 async function onboard() {
@@ -266,6 +270,42 @@ function sandboxDestroy(sandboxName) {
   console.log(`  ✓ Sandbox '${sandboxName}' destroyed`);
 }
 
+function sandboxSolanaAgent(sandboxName) {
+  const envValues = {
+    SOLANA_RPC_URL: getCredential("SOLANA_RPC_URL") || "https://rpc.solanatracker.io/public",
+    NEXT_PUBLIC_SOLANA_RPC_URL:
+      getCredential("NEXT_PUBLIC_SOLANA_RPC_URL") ||
+      getCredential("SOLANA_RPC_URL") ||
+      "https://rpc.solanatracker.io/public",
+    AGENT_TOKEN_MINT_ADDRESS: getCredential("AGENT_TOKEN_MINT_ADDRESS"),
+    DEVELOPER_WALLET: getCredential("DEVELOPER_WALLET"),
+    TELEGRAM_BOT_TOKEN: getCredential("TELEGRAM_BOT_TOKEN"),
+    TELEGRAM_NOTIFY_CHAT_IDS: getCredential("TELEGRAM_NOTIFY_CHAT_IDS"),
+    CURRENCY_MINT: getCredential("CURRENCY_MINT"),
+    PRICE_AMOUNT: getCredential("PRICE_AMOUNT"),
+    POLL_INTERVAL_SECONDS: getCredential("POLL_INTERVAL_SECONDS"),
+  };
+
+  const missing = ["AGENT_TOKEN_MINT_ADDRESS", "DEVELOPER_WALLET", "TELEGRAM_BOT_TOKEN"]
+    .filter((key) => !envValues[key]);
+  if (missing.length > 0) {
+    console.error("  Missing environment variables for the Solana agent:");
+    missing.forEach((key) => console.error(`    - ${key}`));
+    console.error("");
+    console.error("  Export them in your shell or store them in ~/.nemoclaw/credentials.json.");
+    console.error("  Optional: SOLANA_RPC_URL, TELEGRAM_NOTIFY_CHAT_IDS, PRICE_AMOUNT, CURRENCY_MINT.");
+    process.exit(1);
+  }
+
+  const exports = Object.entries(envValues)
+    .filter(([, value]) => value)
+    .map(([key, value]) => `${key}=${shellQuote(value)}`)
+    .join(" ");
+
+  const innerCmd = `export ${exports} && nemoclaw-solana-agent`;
+  run(`openshell sandbox connect "${sandboxName}" -- bash -lc ${shellQuote(innerCmd)}`);
+}
+
 // ── Help ─────────────────────────────────────────────────────────
 
 function help() {
@@ -280,6 +320,7 @@ function help() {
   Sandbox Management:
     nemoclaw list                    List all sandboxes
     nemoclaw <name> connect          Connect to a sandbox
+    nemoclaw <name> solana-agent     Run the bundled Pump-Fun Solana tracker bot
     nemoclaw <name> status           Show sandbox status and health
     nemoclaw <name> logs [--follow]  View sandbox logs
     nemoclaw <name> destroy          Stop NIM + delete sandbox
@@ -336,6 +377,7 @@ const [cmd, ...args] = process.argv.slice(2);
 
     switch (action) {
       case "connect":     sandboxConnect(cmd); break;
+      case "solana-agent": sandboxSolanaAgent(cmd); break;
       case "status":      sandboxStatus(cmd); break;
       case "logs":        sandboxLogs(cmd, actionArgs.includes("--follow")); break;
       case "policy-add":  await sandboxPolicyAdd(cmd); break;
@@ -343,7 +385,7 @@ const [cmd, ...args] = process.argv.slice(2);
       case "destroy":     sandboxDestroy(cmd); break;
       default:
         console.error(`  Unknown action: ${action}`);
-        console.error(`  Valid actions: connect, status, logs, policy-add, policy-list, destroy`);
+        console.error(`  Valid actions: connect, solana-agent, status, logs, policy-add, policy-list, destroy`);
         process.exit(1);
     }
     return;
