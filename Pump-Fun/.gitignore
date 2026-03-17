@@ -1,0 +1,71 @@
+# ═══════════════════════════════════════════════════════════════════
+# PumpKit + Pump SDK — .gitignore
+# ═══════════════════════════════════════════════════════════════════
+
+# ── Dependencies ─────────────────────────────────────────────────
+node_modules/
+
+# ── Build output ─────────────────────────────────────────────────
+dist/
+coverage/
+*.tsbuildinfo
+
+# ── Environment & Secrets ────────────────────────────────────────
+# CRITICAL: Never commit real env files or keypairs
+.env
+.env.*
+!.env.example
+*.keypair
+deploy-keypair.json
+id_*.json
+*.pem
+*.key
+
+# ── Database files ───────────────────────────────────────────────
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# ── Logs ─────────────────────────────────────────────────────────
+*.log
+npm-debug.log*
+
+# ── OS files ─────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# ── IDE / Editor ─────────────────────────────────────────────────
+.idea/
+.vscode/
+*.code-workspace
+
+# ── Lock files (regenerated per environment) ─────────────────────
+package-lock.json
+bun.lock
+yarn.lock
+pnpm-lock.yaml
+
+# ── Rust ─────────────────────────────────────────────────────────
+rust/target/
+rust/Cargo.lock
+
+# ── Registry tokens ──────────────────────────────────────────────
+.mcpregistry_github_token
+.mcpregistry_registry_token
+.eslintcache
+
+# ── Temp files ───────────────────────────────────────────────────
+*.bak
+*.tmp
+*.orig
+*.csv
+scraper*
+screenshots/
+
+# ── Vercel / Deploy ──────────────────────────────────────────────
+.vercel/

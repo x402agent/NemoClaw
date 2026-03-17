@@ -1,0 +1,32 @@
+{
+  "name": "@pump-fun/swarm-bot",
+  "version": "1.0.0",
+  "description": "PumpFun trading bot swarm — multi-strategy bot manager with real-time web dashboard",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@nirholas/pump-sdk": "^1.31.0",
+    "@solana/spl-token": "^0.4.12",
+    "@solana/web3.js": "^1.98.0",
+    "better-sqlite3": "^11.8.1",
+    "bn.js": "^5.2.1",
+    "dotenv": "^16.5.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/bn.js": "^5.1.6",
+    "@types/ws": "^8.5.14",
+    "tsx": "^4.7.0",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

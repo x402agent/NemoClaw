@@ -1,0 +1,390 @@
+# Pump SDK - Full Context
+
+> **Usage**: Use `llms.txt` for quick reference. Use this file (`llms-full.txt`) only when you need complete API details, event types, or architecture context.
+
+This file provides comprehensive context for AI assistants working with this codebase.
+
+## Project Overview
+
+The Pump SDK (`@nirholas/pump-sdk`) is a TypeScript SDK for the Pump protocol — a Solana-based token launchpad with bonding curve pricing, automatic AMM migration, tiered fees, creator fee sharing, token incentives, and social fee integrations. Also includes vanity address generators (Rust + TypeScript), MCP server (55 tools), WebSocket relay, live dashboards, 4 Telegram bots, bot fleet orchestrator, AI trading bot, unified dashboard, pumpkit monorepo, and production shell scripts. Uses ONLY official Solana Labs libraries for all cryptographic operations.
+
+## Official Libraries Only
+
+| Implementation | Library | Maintainer |
+|----------------|---------|------------|
+| Rust | solana-sdk | Solana Labs |
+| TypeScript | @solana/web3.js | Solana Labs |
+| Shell | solana-keygen | Solana Labs |
+
+## On-Chain Programs
+
+| Program | ID | Purpose |
+|---------|-----|---------|
+| Pump | `6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P` | Bonding curve (create/buy/sell) |
+| PumpAMM | `pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA` | Graduated AMM pools |
+| PumpFees | `pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ` | Fee sharing |
+
+## Architecture
+
+### Core SDK (src/)
+
+**Offline SDK (`PumpSdk`)** — Builds `TransactionInstruction[]` without a connection. Exported as singleton `PUMP_SDK`.
+
+Key methods:
+- `createV2Instruction` — Token creation (Token-2022)
+- `createV2AndBuyInstructions` — Create + first purchase atomically
+- `buyInstructions` / `sellInstructions` — Bonding curve trading
+- `migrateInstruction` — Graduate token to AMM
+- `createFeeSharingConfig` / `updateFeeShares` / `distributeCreatorFees` — Fee sharing
+- `initUserVolumeAccumulator` / `syncUserVolumeAccumulator` — Token incentives
+- `createSocialFeePdaInstruction` / `claimSocialFeePdaInstruction` — Platform-based fee collection
+- Decoder methods: `decodeGlobal`, `decodeBondingCurve`, `decodeFeeConfig`, `decodeSocialFeePdaAccount`, etc.
+
+**Online SDK (`OnlinePumpSdk`)** — Extends offline with RPC fetchers:
+- `fetchGlobal`, `fetchBondingCurve`, `fetchBuyState`, `fetchSellState`
+- `fetchSocialFeePda` — Fetch social fee PDA state by userId + platform
+- `collectCoinCreatorFeeInstructions`, `getCreatorVaultBalanceBothPrograms`
+- `claimTokenIncentivesBothPrograms`, `buildDistributeCreatorFeesInstructions`
+
+**Bonding Curve Math (`bondingCurve.ts`):**
+- Constant-product formula: `x * y = k`
+- `getBuyTokenAmountFromSolAmount` / `getSellSolAmountFromTokenAmount`
+- Fee-aware quoting with tiered fees
+- Market cap calculation
+
+**Fee System (`fees.ts`):**
+- Tiered fees based on market cap
+- `computeFeesBps`, `calculateFeeTier`, `getFee`
+- Ceiling division for dust prevention
+
+**Token Incentives (`tokenIncentives.ts`):**
+- `totalUnclaimedTokens`, `currentDayTokens` — Pure math
+- Day-indexed volume tracking with pro-rata distribution
+
+**Analytics (`analytics.ts`):**
+- `calculateBuyPriceImpact` / `calculateSellPriceImpact` — Price impact in BPS
+- `getGraduationProgress` — How close a token is to graduating
+- `getTokenPrice` — Per-token SOL cost on the curve
+- `getBondingCurveSummary` — Combined overview of price, progress, market cap
+
+**Event Types (`state.ts`):**
+- Trading: `TradeEvent`, `AmmBuyEvent`, `AmmSellEvent`
+- Lifecycle: `CreateEvent`, `CompleteEvent`, `CompletePumpAmmMigrationEvent`
+- Fees: `CollectCreatorFeeEvent`, `ClaimCashbackEvent`, `DistributeCreatorFeesEvent`
+- Fee Sharing: `CreateFeeSharingConfigEvent`, `UpdateFeeSharesEvent`, `ResetFeeSharingConfigEvent`, `RevokeFeeSharingAuthorityEvent`, `TransferFeeSharingAuthorityEvent`
+- Social Fees: `SocialFeePdaCreatedEvent`, `SocialFeePdaClaimedEvent`
+- Volume: `ClaimTokenIncentivesEvent`, `InitUserVolumeAccumulatorEvent`, `SyncUserVolumeAccumulatorEvent`
+- Pools: `CreatePoolEvent`, `DepositEvent`, `WithdrawEvent`
+- Admin: `AdminSetCreatorEvent`, `SetCreatorEvent`, `MigrateBondingCurveCreatorEvent`, `ExtendAccountEvent`
+
+## Solana Address Format
+
+- Algorithm: Ed25519
+- Address encoding: Base58
+- Address length: 32-44 characters
+- Secret key: 64 bytes [seed(32) | pubkey(32)]
+
+Base58 alphabet: 123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz
+(Note: no 0, O, I, l to avoid confusion)
+
+## File Format
+
+Solana CLI compatible JSON array of 64 bytes:
+```json
+[174,47,154,16,202,193,206,113,...]
+```
+
+Load with: `solana config set --keypair keypair.json`
+
+## Components
+
+### Rust Vanity Generator (rust/)
+
+High-performance multi-threaded vanity address generator:
+- `generator.rs` — Parallel key generation using rayon (100K+ keys/sec)
+- `matcher.rs` — Pattern matching (prefix/suffix/case-insensitive)
+- `output.rs` — File output in Solana CLI format
+- `security.rs` — Memory zeroization, RNG verification
+
+### TypeScript Vanity Generator (typescript/)
+
+Educational reference implementation:
+- `lib/generator.ts` — Async key generation using @solana/web3.js
+- `lib/matcher.ts` — Pattern matching
+- `lib/output.ts` — File output
+- `lib/security.ts` — Security utilities
+
+### MCP Server (mcp-server/)
+
+Fully implemented Model Context Protocol server (v2024-11-05):
+- 55 tools organized by category: quoting (8), trading (6), fees (8), analytics (7), AMM (5), social fees (6), wallet (7), token incentives (5), metadata (3)
+- 4 resource URIs: solana://config, solana://keypair/{id}, solana://address/{pubkey}, plus 1 static resource
+- 5 prompts: create_token (step-by-step token creation), buy_token (bonding curve/AMM buying), setup_fee_sharing (fee configuration), check_portfolio (wallet analysis), graduation_check (token graduation status)
+- stdio transport, session keypair management with zeroization on shutdown
+
+### Telegram Bot (telegram-bot/)
+
+PumpFun activity monitoring bot with Telegram notifications:
+- grammY framework with @solana/web3.js for Solana RPC/WebSocket
+- Real-time on-chain monitoring of fee claim transactions across Pump, PumpAMM, and PumpFees programs
+- 3 detection strategies: discriminator matching, inner instruction SOL transfers, balance-change heuristic
+- 4th strategy: event log parsing for claim discriminators
+- 13 commands: /start, /help, /watch, /unwatch, /list, /status, /cto, /alerts, /monitor, /stopmonitor, /price, /fees, /quote
+- CTO (Creator Takeover) alerts: detect creator fee redirection events
+- Graduation alerts: bonding curve completion and AMM migration notifications
+- Whale trade alerts: configurable SOL threshold for large buy/sell detection
+- Fee distribution alerts: tracks creator fee distributions to shareholders
+- REST API: auth, rate limiting, SSE streaming, HMAC-signed webhooks, OpenAPI spec
+- Token launch monitor: real-time detection of new PumpFun token mints
+- PumpEventMonitor: Anchor event decoder for graduation, whale trades, and fee distribution events
+- Persistent state with JSON file storage
+- Docker deployment with multi-stage build and HEALTHCHECK
+
+### Channel Bot (channel-bot/)
+
+Broadcast-only Telegram feed for PumpFun activity:
+- GitHub social fee claims with influencer badges
+- Token graduation announcements
+- First-claim alerts and fake-claim detection
+- Read-only channel posting (no user commands)
+
+### Claim Bot (claim-bot/)
+
+Fee claim tracker by token CA or X handle:
+- Commands: /start, /add, /remove, /list, /status, /help, /rank
+- Twitter follower tracking and influencer follow detection
+
+### Outsiders Bot (outsiders-bot/)
+
+Call leaderboard and performance tracking:
+- Commands: /leaderboard, /last, /calls, /winrate, /pnl, /alpha, /gamble, /settings, /block, /unblock, /rank
+- Win rate tracking, PNL cards, hardcore mode
+- Multi-chain support, call forwarding
+
+### WebSocket Relay Server (websocket-server/)
+
+Real-time token launch relay server:
+- Architecture: PumpFun API ◄─ SolanaMonitor ─► Relay Server (:3099/ws) ─► Browsers
+- One upstream connection to PumpFun, broadcasts parsed events to all connected browsers
+- Health check at `/health` returns connection status and client count
+- Deployed on Railway at `pump-fun-websocket-production.up.railway.app`
+- Powers live dashboards and website/live.html for real-time monitoring
+- Message types: `token-launch`, `status`, `heartbeat`
+- Token metadata: name, symbol, mint, creator, marketCapSol, social links, GitHub URLs
+
+### Live Dashboards (live/)
+
+Standalone browser UIs for real-time PumpFun monitoring:
+- index.html — Token launch dashboard with full Anchor CreateEvent decoding (name, symbol, creator, market cap)
+- trades.html — Real-time buy/sell feed with volume charts, whale detection, analytics
+- vanity.html — Client-side vanity address generator (zero-trust, offline-capable, Solana CLI format output)
+- dashboard.html — Main trading dashboard
+- Multi-endpoint failover for WebSocket connections
+- Custom RPC endpoint input support
+
+### Swarm Orchestrator (swarm/)
+
+Bot fleet orchestrator with centralized event bus:
+- Admin dashboard with real-time WebSocket updates
+- REST API for bot lifecycle: start/stop/restart/build
+- Log aggregation and health monitoring
+- Cross-bot event routing (whale alerts, token launches, fees)
+
+### Swarm Bot (swarm-bot/)
+
+AI multi-strategy trading bot (v1.0.0, Node 20+).
+
+### Dashboard (dashboard/)
+
+Unified control panel for all bots — PumpFun Swarms Bot Dashboard.
+
+### Pumpkit (pumpkit/)
+
+Monorepo with 6 packages:
+- @pumpkit/core — Core monitoring and storage
+- @pumpkit/channel — Channel bot logic
+- @pumpkit/claim — Claim tracking
+- @pumpkit/monitor — Event monitoring
+- @pumpkit/tracker — Token tracking
+- @pumpkit/web — React web dashboard
+
+Uses Turborepo for build orchestration.
+
+### Lair-TG (lair-tg/)
+
+Unified Telegram bot platform for DeFi intelligence. Docker-deployable with Railway config.
+
+### DeFi Agents (packages/defi-agents/)
+
+@nirholas/ai-agents-library (v1.42.0) — General AI agent index with i18n, auto-build, index.json discovery, CI integration.
+
+### Plugin.delivery (packages/plugin.delivery/)
+
+AI Plugin Index for SperaxOS — Monorepo with gateway SDK, plugin SDK, Vercel deployment.
+
+### PumpOS Website (website/)
+
+Static HTML/CSS/JS web desktop with 169+ Pump-Store applications.
+
+### Documentation Site (site/)
+
+Documentation pages covering architecture, deployment, API reference, and examples.
+
+### Landing Pages (pumpfun-site/)
+
+Simple token/profile landing pages (create, profile, token, index).
+
+### Shell Scripts (scripts/)
+
+Production wrappers around `solana-keygen grind`:
+- generate-vanity.sh — Single address with GPG encryption support
+- batch-generate.sh — Parallel batch with resume
+- verify-keypair.sh — 7-point verification
+- test-rust.sh — Rust test runner
+- utils.sh — Shared utilities
+- publish-clawhub.sh — Publishing script
+- scrape-site.mjs — Site scraping
+- screenshot-site.mjs — Site screenshots
+
+### Verification Tools (tools/)
+
+- verify-keypair.ts — TypeScript keypair verification
+- audit-dependencies.sh — Dependency audit
+- check-file-permissions.sh — File permission checks
+
+## Non-Cryptographic Dependencies
+
+These DO NOT touch private keys:
+
+Rust:
+- clap: CLI parsing
+- rayon: Parallelism
+- serde/serde_json: JSON serialization
+- zeroize: Secure memory clearing
+- thiserror: Error handling
+- log: Logging
+- num_cpus: CPU detection
+- libc/nix: Unix permissions
+
+TypeScript SDK:
+- @coral-xyz/anchor: Anchor IDL-based instruction building
+- bn.js: Arbitrary-precision integer arithmetic
+
+TypeScript Vanity:
+- commander: CLI parsing
+- chalk: Terminal colors
+
+## Security Checklist
+
+✅ Uses official Solana Labs cryptographic libraries only
+✅ Memory zeroization after key use
+✅ File permissions set to 0600
+✅ No network calls (fully offline capable)
+✅ RNG quality verification
+✅ Open source and auditable
+
+## Common Operations
+
+### SDK Usage
+```typescript
+import { OnlinePumpSdk, PUMP_SDK, getBuyTokenAmountFromSolAmount } from "@nirholas/pump-sdk";
+
+const sdk = new OnlinePumpSdk(connection);
+const global = await sdk.fetchGlobal();
+const ix = await PUMP_SDK.createV2Instruction({ mint, name, symbol, uri, creator, user, mayhemMode: false });
+```
+
+### Generate vanity address (Rust)
+```bash
+cd rust && cargo run --release -- --prefix ABC
+```
+
+### Generate vanity address (TypeScript)
+```bash
+cd typescript && npx ts-node src/index.ts --prefix ABC
+```
+
+### Generate vanity address (Shell)
+```bash
+./scripts/generate-vanity.sh ABC
+```
+
+### Verify keypair
+```bash
+cd tools && npx ts-node verify-keypair.ts ../output/keypair.json
+```
+
+## Testing
+
+```bash
+# SDK unit tests
+npm test
+
+# SDK with coverage
+npm run test:coverage
+
+# Lint
+npm run lint
+
+# Type check
+npm run typecheck
+
+# Rust
+cd rust && cargo test
+
+# Integration
+./docs/run-all-tests.sh
+```
+
+## AI Assistant Guidelines
+
+When modifying this codebase:
+1. NEVER add non-official cryptographic dependencies
+2. Ensure all key material is zeroized after use
+3. Maintain Solana CLI output format compatibility
+4. Keep file permissions at 0600
+5. Test across all implementations (Rust, TS, Shell)
+6. All amounts use BN (bn.js) — never JavaScript number for financial math
+7. Instruction builders return TransactionInstruction[], never Transaction objects
+8. createInstruction (v1) is deprecated — use createV2Instruction
+9. BondingCurve.complete === true means graduated to AMM
+10. Shares must total exactly 10,000 BPS
+
+Approved official dependencies:
+- Rust: solana-sdk (solana-labs/solana)
+- TypeScript: @solana/web3.js (solana-labs/solana-web3.js)
+- Shell: solana-keygen CLI
+
+DO NOT add: web3.py, solders, or any third-party crypto libraries.
+
+## Agent Skill Files
+
+See `.github/skills/` for 41 detailed skill documents:
+- pump-sdk-core, bonding-curve, bonding-curve-math, token-lifecycle
+- fee-system, fee-sharing, token-incentives
+- solana-program-architecture, solana-wallet, security-practices
+- rust-vanity-gen, rust-vanity-generator, typescript-vanity-generator
+- mcp-server, shell-scripting-cli, testing-quality
+- admin-operations, ai-integration, channel-bot, build-release
+- nextjs-website, pump-official (multiple), pump-carbon-indexer, openclaw (multiple)
+
+## Well-Known Files
+
+- `.well-known/skills.json` — Skills registry
+- `.well-known/agent.json` — Agent capabilities
+- `.well-known/ai-plugin.json` — AI plugin manifest
+- `.well-known/security.txt` — Security contact
+
+## Repository
+
+- URL: https://github.com/nirholas/pump-fun-sdk
+- npm: https://www.npmjs.com/package/@nirholas/pump-sdk
+- Language: TypeScript
+- License: MIT
+- Author: nirholas
+
+## Contributing
+
+Contributions are welcome. See CONTRIBUTING.md for guidelines.
+
+

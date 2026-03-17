@@ -1,0 +1,56 @@
+# Exclude non-essential files from npm package
+# Source is included via "files" in package.json but these are excluded
+
+# Build & dev
+.github/
+.vscode/
+.editorconfig
+.eslintrc*
+eslint.config.*
+.prettierrc
+.prettierignore
+.nvmrc
+tsconfig.json
+tsup.config.ts
+jest.config.ts
+Makefile
+coverage/
+
+# Documentation
+docs/
+tutorials/
+prompts/
+skills/
+security/
+*.md
+!README.md
+!LICENSE
+
+# Other packages
+rust/
+typescript/
+mcp-server/
+telegram-bot/
+websocket-server/
+channel-bot/
+live/
+site/
+website/
+packages/
+x402/
+lair-tg/
+scripts/
+tests/
+tools/
+
+# Misc
+*.yml
+*.svg
+*.html
+humans.txt
+llms.txt
+llms-full.txt
+server.json
+vercel.json
+offline.html
+d.md

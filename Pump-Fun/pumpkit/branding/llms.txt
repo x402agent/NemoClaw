@@ -1,0 +1,59 @@
+# PumpKit
+
+> Open-source TypeScript framework for building PumpFun Telegram bots on Solana.
+
+## Overview
+
+PumpKit provides production-tested building blocks for PumpFun bot development: Grammy bot scaffolding, Solana event monitors, HTML message formatters, SQLite storage, REST APIs, webhooks, health checks, and deployment configs. Ship a bot in hours, not weeks.
+
+## Packages
+
+- @pumpkit/core — Shared framework: bot scaffolding, monitors, formatters, storage, config, health checks
+- @pumpkit/monitor — All-in-one PumpFun monitor bot (fee claims, launches, graduations, whale trades, CTOs)
+- @pumpkit/tracker — Group call-tracking bot with leaderboards, PNL cards, and rankings
+- @pumpkit/channel — Read-only Telegram channel feed for token events
+- @pumpkit/claim — Fee claim tracker by token CA or X handle
+
+## Event Types
+
+PumpKit monitors 6 on-chain PumpFun event types:
+1. Fee claims — creator fee claim notifications
+2. Token launches — new token mint detection
+3. Graduations — bonding curve completion → AMM migration
+4. Whale trades — large buy/sell above configurable thresholds
+5. CTO alerts — Creator Takeover (fee redirection) detection
+6. Fee distributions — shareholder payout notifications
+
+## Tech Stack
+
+TypeScript, Grammy (Telegram), @solana/web3.js, better-sqlite3, tsup, Turborepo, Docker, Railway.
+
+## Links
+
+- GitHub: https://github.com/pumpkit/pumpkit
+- Documentation: https://pumpkit.dev
+- npm: https://www.npmjs.com/org/pumpkit
+- Parent project: https://github.com/nirholas/pump-fun-sdk
+
+## Quick Start
+
+```bash
+npm install @pumpkit/core
+```
+
+```typescript
+import { createBot, ClaimMonitor, formatClaim, createHealthServer } from '@pumpkit/core';
+
+const bot = createBot({ token: process.env.BOT_TOKEN! });
+const monitor = new ClaimMonitor({
+  rpcUrl: process.env.SOLANA_RPC_URL!,
+  onClaim: async (event) => await bot.broadcast(formatClaim(event)),
+});
+createHealthServer({ port: 3000, monitor });
+monitor.start();
+bot.launch();
+```
+
+## License
+
+MIT

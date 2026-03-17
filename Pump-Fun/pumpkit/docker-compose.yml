@@ -1,0 +1,28 @@
+services:
+  monitor:
+    build:
+      context: .
+      dockerfile: packages/monitor/Dockerfile
+    env_file:
+      - packages/monitor/.env
+    ports:
+      - "3000:3000"
+    volumes:
+      - monitor-data:/app/data
+    restart: unless-stopped
+
+  tracker:
+    build:
+      context: .
+      dockerfile: packages/tracker/Dockerfile
+    env_file:
+      - packages/tracker/.env
+    ports:
+      - "3001:3000"
+    volumes:
+      - tracker-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  monitor-data:
+  tracker-data:

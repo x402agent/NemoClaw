@@ -1,0 +1,13 @@
+use {
+    super::*,
+    carbon_core::{borsh, CarbonDeserialize},
+};
+
+#[derive(
+    CarbonDeserialize, Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq, Clone, Hash,
+)]
+pub struct HashablePluginSchema {
+    pub index: u64,
+    pub authority: Authority,
+    pub plugin: Plugin,
+}

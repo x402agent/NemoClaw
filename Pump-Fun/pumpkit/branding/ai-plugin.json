@@ -1,0 +1,17 @@
+{
+  "schema_version": "v1",
+  "name_for_human": "PumpKit",
+  "name_for_model": "pumpkit",
+  "description_for_human": "Open-source TypeScript framework for building PumpFun Telegram bots on Solana — monitoring, alerts, tracking, and analytics.",
+  "description_for_model": "PumpKit is an open-source TypeScript framework for building production-ready PumpFun Telegram bots on Solana. It provides Grammy bot scaffolding, real-time Solana event monitors (fee claims, token launches, graduations, whale trades, CTO alerts, fee distributions), HTML message formatters, SQLite storage, REST APIs, webhooks, health checks, and Docker/Railway deployment configs. Packages: @pumpkit/core (shared framework), @pumpkit/monitor (all-in-one monitor bot), @pumpkit/tracker (call tracking + leaderboards), @pumpkit/channel (read-only channel feed), @pumpkit/claim (fee claim tracker).",
+  "auth": {
+    "type": "none"
+  },
+  "api": {
+    "type": "openapi",
+    "url": "https://pumpkit.dev/openapi.json"
+  },
+  "logo_url": "https://pumpkit.dev/logo.png",
+  "contact_email": "support@pumpkit.dev",
+  "legal_info_url": "https://pumpkit.dev/legal"
+}

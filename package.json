@@ -11,6 +11,7 @@
     "prepublishOnly": "cd nemoclaw && npm install --ignore-scripts && npm run build"
   },
   "dependencies": {
+    "@img/sharp-darwin-arm64": "^0.34.5",
     "openclaw": "2026.3.11"
   },
   "files": [
