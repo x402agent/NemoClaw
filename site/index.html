@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NemoClaw — Autonomous Solana Trading Agent</title>
+  <meta name="description" content="NemoClaw turns an AI model into a fully autonomous Solana agent. Trade tokens, manage wallets, narrate on Telegram — all sandboxed. Powered by 8bit/DeepSolana.">
+  <meta name="keywords" content="NemoClaw, Solana, trading agent, AI, DeepSolana, Pump-Fun, Telegram bot, DeFi, autonomous agent, NVIDIA, OpenShell">
+  <meta property="og:title" content="NemoClaw — Autonomous Solana Trading Agent">
+  <meta property="og:description" content="Three commands. Zero exposed keys. Full autonomy. Powered by DeepSolana on Ollama.">
+  <meta property="og:type" content="website">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #0a0a0f;
+      --bg-secondary: #12121a;
+      --bg-card: #1a1a28;
+      --bg-card-hover: #222236;
+      --accent-solana: #9945FF;
+      --accent-teal: #14F195;
+      --accent-pink: #FF6B9D;
+      --accent-orange: #FF9F43;
+      --accent-blue: #3B82F6;
+      --text-primary: #e8e8f0;
+      --text-secondary: #8888aa;
+      --text-muted: #555570;
+      --border: #2a2a40;
+      --glow-solana: rgba(153,69,255,.25);
+      --glow-teal: rgba(20,241,149,.20);
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      overflow-x: hidden;
+      line-height: 1.6;
+    }
+
+    /* ── Noise Overlay ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 9999;
+    }
+
+    /* ── Hero ── */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 2rem;
+      position: relative;
+    }
+    .hero::before {
+      content: '';
+      position: absolute; top: -50%; left: -50%;
+      width: 200%; height: 200%;
+      background: radial-gradient(ellipse at 30% 20%, var(--glow-solana) 0%, transparent 50%),
+                  radial-gradient(ellipse at 70% 80%, var(--glow-teal) 0%, transparent 50%);
+      animation: aurora 20s ease-in-out infinite;
+    }
+    @keyframes aurora {
+      0%, 100% { transform: translate(0, 0) rotate(0deg); }
+      33% { transform: translate(2%, -3%) rotate(1deg); }
+      66% { transform: translate(-2%, 2%) rotate(-1deg); }
+    }
+    .hero-content { position: relative; z-index: 1; max-width: 900px; }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: .5rem;
+      background: rgba(153,69,255,.12);
+      border: 1px solid rgba(153,69,255,.3);
+      border-radius: 999px; padding: .4rem 1.2rem;
+      font-size: .8rem; font-weight: 600;
+      color: var(--accent-solana);
+      margin-bottom: 2rem;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+    }
+    .hero-badge .dot {
+      width: 8px; height: 8px;
+      background: var(--accent-teal);
+      border-radius: 50%;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: .5; transform: scale(1.3); }
+    }
+    .hero h1 {
+      font-size: clamp(3rem, 7vw, 5.5rem);
+      font-weight: 900;
+      line-height: 1.05;
+      letter-spacing: -.03em;
+      margin-bottom: 1.5rem;
+    }
+    .hero h1 .gradient {
+      background: linear-gradient(135deg, var(--accent-solana) 0%, var(--accent-teal) 50%, var(--accent-pink) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero-sub {
+      font-size: clamp(1.1rem, 2vw, 1.4rem);
+      color: var(--text-secondary);
+      max-width: 640px;
+      margin: 0 auto 2.5rem;
+      font-weight: 300;
+    }
+
+    /* ── Terminal Demo ── */
+    .terminal {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      max-width: 620px;
+      margin: 0 auto 3rem;
+      text-align: left;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,.5), 0 0 40px var(--glow-solana);
+    }
+    .terminal-bar {
+      display: flex; align-items: center; gap: 8px;
+      padding: 12px 16px;
+      background: rgba(0,0,0,.3);
+      border-bottom: 1px solid var(--border);
+    }
+    .terminal-dot { width: 12px; height: 12px; border-radius: 50%; }
+    .terminal-dot.red { background: #ff5f56; }
+    .terminal-dot.yellow { background: #ffbd2e; }
+    .terminal-dot.green { background: #27c93f; }
+    .terminal-title {
+      flex: 1; text-align: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .75rem;
+      color: var(--text-muted);
+    }
+    .terminal-body {
+      padding: 1.5rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .85rem;
+      line-height: 1.8;
+    }
+    .terminal-line { opacity: 0; animation: typeIn .5s ease forwards; }
+    .terminal-line:nth-child(1) { animation-delay: .3s; }
+    .terminal-line:nth-child(2) { animation-delay: .8s; }
+    .terminal-line:nth-child(3) { animation-delay: 1.3s; }
+    .terminal-line:nth-child(4) { animation-delay: 1.8s; }
+    .terminal-line:nth-child(5) { animation-delay: 2.3s; }
+    .terminal-line:nth-child(6) { animation-delay: 2.8s; }
+    .terminal-line:nth-child(7) { animation-delay: 3.3s; }
+    .terminal-line:nth-child(8) { animation-delay: 3.8s; }
+    @keyframes typeIn { to { opacity: 1; } }
+    .prompt { color: var(--accent-teal); }
+    .cmd { color: #e8e8f0; }
+    .comment { color: var(--text-muted); font-style: italic; }
+    .success { color: var(--accent-teal); }
+    .model-name { color: var(--accent-solana); }
+
+    /* ── CTA Buttons ── */
+    .cta-row { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+    .btn {
+      display: inline-flex; align-items: center; gap: .5rem;
+      padding: .9rem 2rem;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: .95rem;
+      text-decoration: none;
+      transition: all .3s ease;
+      border: none; cursor: pointer;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent-solana), #7B3FE4);
+      color: white;
+      box-shadow: 0 4px 20px var(--glow-solana);
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(153,69,255,.4);
+    }
+    .btn-secondary {
+      background: var(--bg-card);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--accent-solana);
+      transform: translateY(-2px);
+    }
+
+    /* ── Sections ── */
+    section { padding: 6rem 2rem; }
+    .container { max-width: 1100px; margin: 0 auto; }
+    .section-label {
+      font-size: .75rem; font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .15em;
+      color: var(--accent-solana);
+      margin-bottom: .75rem;
+    }
+    .section-title {
+      font-size: clamp(2rem, 4vw, 3rem);
+      font-weight: 800;
+      letter-spacing: -.02em;
+      margin-bottom: 1rem;
+    }
+    .section-desc {
+      color: var(--text-secondary);
+      font-size: 1.1rem;
+      max-width: 600px;
+      margin-bottom: 3rem;
+    }
+
+    /* ── Feature Grid ── */
+    .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; }
+    .feature-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2rem;
+      transition: all .3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .feature-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--accent-solana), var(--accent-teal));
+      opacity: 0;
+      transition: opacity .3s ease;
+    }
+    .feature-card:hover {
+      border-color: rgba(153,69,255,.4);
+      transform: translateY(-4px);
+      box-shadow: 0 8px 30px rgba(0,0,0,.3);
+    }
+    .feature-card:hover::before { opacity: 1; }
+    .feature-icon {
+      width: 48px; height: 48px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 12px;
+      font-size: 1.5rem;
+      margin-bottom: 1rem;
+    }
+    .feature-icon.solana { background: rgba(153,69,255,.15); }
+    .feature-icon.wallet { background: rgba(20,241,149,.15); }
+    .feature-icon.telegram { background: rgba(38,165,228,.15); }
+    .feature-icon.sdk { background: rgba(255,107,157,.15); }
+    .feature-icon.sandbox { background: rgba(255,159,67,.15); }
+    .feature-icon.model { background: rgba(59,130,246,.15); }
+    .feature-card h3 { font-size: 1.15rem; font-weight: 700; margin-bottom: .5rem; }
+    .feature-card p { color: var(--text-secondary); font-size: .9rem; line-height: 1.5; }
+
+    /* ── Commands ── */
+    .commands-section { background: var(--bg-secondary); }
+    .cmd-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem; }
+    .cmd-card {
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+    }
+    .cmd-card h4 {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .85rem;
+      color: var(--accent-teal);
+      margin-bottom: .5rem;
+    }
+    .cmd-card p { color: var(--text-secondary); font-size: .85rem; }
+
+    /* ── Architecture Section ── */
+    .arch-diagram {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2.5rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .75rem;
+      line-height: 1.6;
+      overflow-x: auto;
+      white-space: pre;
+      color: var(--text-secondary);
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    /* ── Demo Section ── */
+    .demo-section { background: var(--bg-primary); }
+    .demo-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2.5rem;
+      max-width: 700px;
+      margin: 0 auto;
+    }
+    .demo-response {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.5rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .85rem;
+      color: var(--accent-teal);
+      line-height: 1.7;
+      white-space: pre-wrap;
+      margin-top: 1.5rem;
+    }
+    .demo-prompt {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .85rem;
+      color: var(--text-muted);
+    }
+    .demo-prompt span { color: var(--accent-solana); }
+
+    /* ── Telegram Section ── */
+    .tg-events {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1rem;
+    }
+    .tg-event {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.2rem;
+      display: flex; align-items: center; gap: 1rem;
+    }
+    .tg-event .icon { font-size: 1.5rem; }
+    .tg-event .label { font-weight: 600; font-size: .9rem; }
+    .tg-event .desc { color: var(--text-secondary); font-size: .8rem; }
+
+    /* ── Footer ── */
+    footer {
+      padding: 3rem 2rem;
+      text-align: center;
+      border-top: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: .85rem;
+    }
+    footer a {
+      color: var(--accent-solana);
+      text-decoration: none;
+    }
+    footer a:hover { text-decoration: underline; }
+    .footer-links {
+      display: flex;
+      gap: 2rem;
+      justify-content: center;
+      margin-bottom: 1rem;
+    }
+
+    /* ── Stats ── */
+    .stats-row {
+      display: flex;
+      gap: 3rem;
+      justify-content: center;
+      margin: 3rem 0;
+      flex-wrap: wrap;
+    }
+    .stat {
+      text-align: center;
+    }
+    .stat-value {
+      font-size: 2.5rem;
+      font-weight: 900;
+      background: linear-gradient(135deg, var(--accent-solana), var(--accent-teal));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .stat-label {
+      font-size: .8rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      margin-top: .25rem;
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 640px) {
+      .features { grid-template-columns: 1fr; }
+      .cmd-grid { grid-template-columns: 1fr; }
+      .stats-row { gap: 1.5rem; }
+      .terminal-body { font-size: .75rem; padding: 1rem; }
+      .arch-diagram { font-size: .6rem; padding: 1rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ═══════════ HERO ═══════════ -->
+  <section class="hero">
+    <div class="hero-content">
+      <div class="hero-badge"><span class="dot"></span> Live on Solana Mainnet</div>
+      <h1>
+        <span class="gradient">NemoClaw</span><br>
+        Autonomous Solana Agent
+      </h1>
+      <p class="hero-sub">
+        Trade tokens, manage wallets, narrate on Telegram — all inside a hardened sandbox.
+        Powered by <strong>8bit/DeepSolana</strong> on Ollama.
+      </p>
+
+      <!-- Terminal Animation -->
+      <div class="terminal">
+        <div class="terminal-bar">
+          <span class="terminal-dot red"></span>
+          <span class="terminal-dot yellow"></span>
+          <span class="terminal-dot green"></span>
+          <span class="terminal-title">zsh — nemoclaw</span>
+        </div>
+        <div class="terminal-body">
+          <div class="terminal-line"><span class="prompt">$</span> <span class="cmd">npm install -g @mawdbotsonsolana/nemoclaw</span></div>
+          <div class="terminal-line"><span class="success">✓ installed v0.4.0</span></div>
+          <div class="terminal-line"><span class="prompt">$</span> <span class="cmd">nemoclaw onboard</span></div>
+          <div class="terminal-line"><span class="comment"># Auto-detects Ollama → pulls 8bit/DeepSolana</span></div>
+          <div class="terminal-line"><span class="success">✓ Gateway ready</span> · <span class="success">✓ Sandbox built</span> · <span class="success">✓ Wallet created</span></div>
+          <div class="terminal-line"><span class="prompt">$</span> <span class="cmd">nemoclaw solana start</span></div>
+          <div class="terminal-line"><span class="success">✓ Telegram bridge online</span></div>
+          <div class="terminal-line"><span class="model-name">🦀 NemoClaw is trading autonomously</span></div>
+        </div>
+      </div>
+
+      <div class="cta-row">
+        <a href="https://github.com/x402agent/NemoClaw" class="btn btn-primary">⭐ View on GitHub</a>
+        <a href="https://www.npmjs.com/package/@mawdbotsonsolana/nemoclaw" class="btn btn-secondary">📦 npm v0.4.0</a>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat">
+          <div class="stat-value">43</div>
+          <div class="stat-label">DeFi Personas</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value">9</div>
+          <div class="stat-label">Setup Steps</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value">3</div>
+          <div class="stat-label">Commands to Launch</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value">0</div>
+          <div class="stat-label">Exposed Keys</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ FEATURES ═══════════ -->
+  <section id="features">
+    <div class="container">
+      <div class="section-label">Features</div>
+      <h2 class="section-title">Everything You Need for Autonomous Trading</h2>
+      <p class="section-desc">A complete stack from model to Telegram — sandboxed and policy-governed.</p>
+      <div class="features">
+
+        <div class="feature-card">
+          <div class="feature-icon model">🧠</div>
+          <h3>8bit/DeepSolana</h3>
+          <p>Solana-tuned LLM via Ollama. Auto-pulled during onboard. Understands Pump-Fun, DeFi, wallet narration. Swap for any Ollama model.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon wallet">🔐</div>
+          <h3>Privy Encrypted Wallet</h3>
+          <p>Agentic server wallet. Private keys never leave Privy infrastructure. Spending policies enforced on-chain. 0.1 SOL default limit.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon telegram">🤖</div>
+          <h3>Telegram Bridge</h3>
+          <p>Natural-language narration of every trade, transfer, and interaction. /balance, /holdings, /status, /lasttrade commands.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon sdk">💎</div>
+          <h3>Pump-Fun SDK</h3>
+          <p>Token creation, trading, claims, buybacks. PumpKit monorepo with 6 tutorials. x402 micropayment protocol. Full DeFi toolkit.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon sandbox">🛡️</div>
+          <h3>Hardened Sandbox</h3>
+          <p>Landlock + seccomp + netns via NVIDIA OpenShell. Deny-all default. Hot-reloadable network policies. Every request governed.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon solana">🧠</div>
+          <h3>43 DeFi Personas</h3>
+          <p>Yield farmer, whale watcher, MEV advisor, risk engine, tax strategist, and 38 more. 18 locale translations each.</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ DEMO ═══════════ -->
+  <section class="demo-section" id="demo">
+    <div class="container">
+      <div class="section-label">Live Demo</div>
+      <h2 class="section-title">DeepSolana In Action</h2>
+      <p class="section-desc">Real response from the 8bit/DeepSolana model running locally via Ollama.</p>
+      <div class="demo-box">
+        <div class="demo-prompt">
+          <span>curl</span> http://localhost:11434/v1/chat/completions \
+    -d '{"model":"8bit/DeepSolana", "messages":[{"role":"user","content":"What is Pump-Fun?"}]}'
+        </div>
+        <div class="demo-response">Hello there, matey! I'm NemoClaw, your Solana trading agent.
+
+I'm delighted to confirm that I'm online and ready to rock!
+
+• <strong>Trade execution</strong> — Execute trades on behalf of your Privy wallet
+  using Pump-Fun SDK with Helius RPC for lightning-fast processing.
+
+• <strong>Market monitoring</strong> — Continuously monitor Solana trends,
+  providing up-to-the-minute SOL prices and volume updates.
+
+• <strong>Strategy execution</strong> — Execute complex trading strategies
+  from simple buy/sell to sophisticated yield farms.
+
+Ready to make some waves in Solana trading? 🦀</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ COMMANDS ═══════════ -->
+  <section class="commands-section" id="commands">
+    <div class="container">
+      <div class="section-label">CLI Reference</div>
+      <h2 class="section-title">All Commands</h2>
+      <p class="section-desc">From zero to autonomous trading in three commands.</p>
+      <div class="cmd-grid">
+        <div class="cmd-card">
+          <h4>nemoclaw onboard</h4>
+          <p>Full 9-step setup wizard. Docker, gateway, sandbox, inference, wallet, policies — all automated.</p>
+        </div>
+        <div class="cmd-card">
+          <h4>nemoclaw solana start</h4>
+          <p>One-shot launcher. Spins up Telegram monitor, wallet bridge, and WebSocket relay inside the sandbox.</p>
+        </div>
+        <div class="cmd-card">
+          <h4>nemoclaw wallet create</h4>
+          <p>Create an encrypted Privy agentic wallet. Private keys never stored locally.</p>
+        </div>
+        <div class="cmd-card">
+          <h4>nemoclaw &lt;name&gt; connect</h4>
+          <p>Open an interactive shell inside any sandbox. Full Solana CLI, helius-cli, Python available.</p>
+        </div>
+        <div class="cmd-card">
+          <h4>nemoclaw &lt;name&gt; solana-bridge</h4>
+          <p>Start the natural-language Telegram narration bridge. Every wallet event gets a story.</p>
+        </div>
+        <div class="cmd-card">
+          <h4>nemoclaw &lt;name&gt; solana-agent</h4>
+          <p>Pump-Fun tracker bot. Monitors launches, graduation events, claims, buybacks.</p>
+        </div>
+        <div class="cmd-card">
+          <h4>nemoclaw &lt;name&gt; telegram-bot</h4>
+          <p>Telegram bot with /balance, /holdings, /status, /wallet, /rpc, /lasttrade commands.</p>
+        </div>
+        <div class="cmd-card">
+          <h4>nemoclaw &lt;name&gt; policy-add</h4>
+          <p>Dynamically add network policy presets. solana-rpc, pumpfun, privy, telegram, ollama.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ TELEGRAM ═══════════ -->
+  <section id="telegram">
+    <div class="container">
+      <div class="section-label">Telegram Integration</div>
+      <h2 class="section-title">Your Agent Speaks</h2>
+      <p class="section-desc">Every on-chain event is narrated in natural language on Telegram.</p>
+      <div class="tg-events">
+        <div class="tg-event">
+          <span class="icon">🟢</span>
+          <div>
+            <div class="label">Buy Detected</div>
+            <div class="desc">Agent spent 0.05 SOL to buy a token</div>
+          </div>
+        </div>
+        <div class="tg-event">
+          <span class="icon">🔴</span>
+          <div>
+            <div class="label">Sell Detected</div>
+            <div class="desc">Agent sold tokens, realized 0.12 SOL</div>
+          </div>
+        </div>
+        <div class="tg-event">
+          <span class="icon">💰</span>
+          <div>
+            <div class="label">SOL Received</div>
+            <div class="desc">Wallet received 1.5 SOL from 4xKp...9nZe</div>
+          </div>
+        </div>
+        <div class="tg-event">
+          <span class="icon">📤</span>
+          <div>
+            <div class="label">SOL Sent</div>
+            <div class="desc">Wallet sent 0.01 SOL to 7bRq...2mXf</div>
+          </div>
+        </div>
+        <div class="tg-event">
+          <span class="icon">🪙</span>
+          <div>
+            <div class="label">Token Balance</div>
+            <div class="desc">Token balance changed</div>
+          </div>
+        </div>
+        <div class="tg-event">
+          <span class="icon">⚡</span>
+          <div>
+            <div class="label">Program Call</div>
+            <div class="desc">On-chain program interaction detected</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ ARCHITECTURE ═══════════ -->
+  <section class="commands-section" id="architecture">
+    <div class="container">
+      <div class="section-label">Architecture</div>
+      <h2 class="section-title">How It Works</h2>
+      <p class="section-desc">Policy-governed sandbox with encrypted wallet and local inference.</p>
+      <div class="arch-diagram">                     ┌──────────────────────┐
+                     │   nemoclaw CLI       │
+                     │   (host machine)     │
+                     └─────────┬────────────┘
+                               │
+                 ┌─────────────▼─────────────┐
+                 │   OpenShell Gateway        │
+                 │   (policy + inference)     │
+                 └─────────────┬─────────────┘
+                               │
+     ┌─────────────────────────▼────────────────────────┐
+     │              Sandbox Container                    │
+     │         (Landlock + seccomp + netns)              │
+     │                                                   │
+     │  ┌────────────┐ ┌─────────────┐ ┌────────────┐  │
+     │  │ Telegram    │ │ Solana      │ │ WS Relay   │  │
+     │  │ Bot         │ │ Bridge      │ │ (launches) │  │
+     │  └──────┬──────┘ └──────┬──────┘ └─────┬──────┘  │
+     │         └───────┬───────┘              │         │
+     │                 ▼                      │         │
+     │        ┌─────────────────┐             │         │
+     │        │  OpenClaw Agent  │◄────────────┘         │
+     │        │  ├ DeepSolana   │                        │
+     │        │  ├ Privy Wallet │                        │
+     │        │  ├ Pump-Fun SDK │                        │
+     │        │  └ 43 Personas  │                        │
+     │        └─────────────────┘                        │
+     └───────────────────────────────────────────────────┘
+                               │
+                 ┌─────────────▼─────────────┐
+                 │         Ollama             │
+                 │   8bit/DeepSolana          │
+                 │   localhost:11434           │
+                 └───────────────────────────┘</div>
+    </div>
+  </section>
+
+  <!-- ═══════════ FOOTER ═══════════ -->
+  <footer>
+    <div class="footer-links">
+      <a href="https://github.com/x402agent/NemoClaw">GitHub</a>
+      <a href="https://www.npmjs.com/package/@mawdbotsonsolana/nemoclaw">npm</a>
+      <a href="https://github.com/x402agent/NemoClaw/blob/main/docs/reference/commands.md">Docs</a>
+      <a href="https://github.com/x402agent/NemoClaw/blob/main/LICENSE">Apache 2.0</a>
+    </div>
+    <p>Built with 🦀 by the NemoClaw team · Powered by <a href="https://ollama.com">Ollama</a> + <a href="https://github.com/NVIDIA/OpenShell">OpenShell</a></p>
+  </footer>
+
+</body>
+</html>
