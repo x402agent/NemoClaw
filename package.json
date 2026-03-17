@@ -25,6 +25,7 @@
     "Pump-Fun/agent-tasks/",
     "Pump-Fun/docs/",
     "Pump-Fun/packages/defi-agents/",
+    "Pump-Fun/pumpkit/",
     "Pump-Fun/pumpkit/agent-prompts/",
     "Pump-Fun/telegram-bot/",
     "Pump-Fun/swarm-bot/",

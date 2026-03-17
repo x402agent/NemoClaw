@@ -29,6 +29,8 @@ describe("CLI dispatch", () => {
     assert.ok(r.out.includes("Sandbox Management"), "missing Sandbox Management section");
     assert.ok(r.out.includes("Policy Presets"), "missing Policy Presets section");
     assert.ok(r.out.includes("solana-agent"), "missing Solana agent action");
+    assert.ok(r.out.includes("solana-bridge"), "missing Solana bridge action");
+    assert.ok(r.out.includes("solana start"), "missing Solana one-shot action");
     assert.ok(r.out.includes("telegram-bot"), "missing Telegram bot action");
     assert.ok(r.out.includes("payment-app"), "missing payment app action");
   });

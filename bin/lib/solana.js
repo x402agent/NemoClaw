@@ -17,12 +17,32 @@ const PRIVY_CONFIG_PATH = path.join(NEMOCLAW_DIR, "privy.json");
 // ── RPC Configuration ────────────────────────────────────────────
 
 const DEFAULT_RPC_OPTIONS = [
-  { key: "helius", label: "Helius (mainnet)", url: "https://mainnet.helius-rpc.com/?api-key=6aaff09d-22ed-4300-80ea-d6a41f67ff6e" },
   { key: "tracker", label: "Solana Tracker (free)", url: "https://rpc.solanatracker.io/public" },
   { key: "ankr", label: "Ankr (free)", url: "https://rpc.ankr.com/solana" },
+  { key: "helius", label: "Helius (requires key)", url: "https://mainnet.helius-rpc.com/?api-key=" },
   { key: "local", label: "Local test-validator", url: "http://localhost:8899" },
   { key: "custom", label: "Custom RPC URL", url: "" },
 ];
+
+function deriveSolanaWsUrl(rpcUrl) {
+  if (!rpcUrl) return null;
+  try {
+    const url = new URL(rpcUrl);
+    url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+function extractHeliusApiKey(rpcUrl) {
+  try {
+    const url = new URL(rpcUrl || "");
+    return url.searchParams.get("api-key") || url.searchParams.get("apiKey");
+  } catch {
+    return null;
+  }
+}
 
 function loadSolanaConfig() {
   try {
@@ -44,6 +64,24 @@ function getSolanaRpcUrl() {
     process.env.SOLANA_RPC_URL ||
     (config && config.rpcUrl) ||
     "https://rpc.solanatracker.io/public"
+  );
+}
+
+function getSolanaWsUrl() {
+  const config = loadSolanaConfig();
+  return (
+    process.env.SOLANA_WS_URL ||
+    (config && config.wsUrl) ||
+    deriveSolanaWsUrl(getSolanaRpcUrl())
+  );
+}
+
+function getHeliusApiKey() {
+  const config = loadSolanaConfig();
+  return (
+    process.env.HELIUS_API_KEY ||
+    (config && config.heliusApiKey) ||
+    extractHeliusApiKey(getSolanaRpcUrl())
   );
 }
 
@@ -293,7 +331,11 @@ function getSolanaEnvVars() {
   const env = {
     SOLANA_RPC_URL: getSolanaRpcUrl(),
     NEXT_PUBLIC_SOLANA_RPC_URL: getSolanaRpcUrl(),
+    SOLANA_WS_URL: getSolanaWsUrl(),
   };
+
+  const heliusApiKey = getHeliusApiKey();
+  if (heliusApiKey) env.HELIUS_API_KEY = heliusApiKey;
 
   // Pump-Fun agent env
   if (solConfig.agentTokenMint) env.AGENT_TOKEN_MINT_ADDRESS = solConfig.agentTokenMint;
@@ -313,6 +355,10 @@ module.exports = {
   loadSolanaConfig,
   saveSolanaConfig,
   getSolanaRpcUrl,
+  getSolanaWsUrl,
+  getHeliusApiKey,
+  deriveSolanaWsUrl,
+  extractHeliusApiKey,
   testRpcConnection,
   getSolanaClusterVersion,
   isSolanaCliInstalled,

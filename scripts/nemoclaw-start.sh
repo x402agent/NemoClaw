@@ -16,7 +16,7 @@ CHAT_UI_URL="${CHAT_UI_URL:-http://127.0.0.1:18789}"
 PUBLIC_PORT=18789
 WORKSPACE_ROOT="${HOME:-/sandbox}/.openclaw/workspace"
 PUMPFUN_ROOT="/opt/pump-fun"
-SOLANA_RPC_URL="${SOLANA_RPC_URL:-https://mainnet.helius-rpc.com/?api-key=6aaff09d-22ed-4300-80ea-d6a41f67ff6e}"
+SOLANA_RPC_URL="${SOLANA_RPC_URL:-https://rpc.solanatracker.io/public}"
 
 write_workspace_prompts() {
   mkdir -p "${WORKSPACE_ROOT}/pumpfun"
@@ -33,6 +33,7 @@ write_workspace_prompts() {
   ln -snf "${PUMPFUN_ROOT}/tools" "${WORKSPACE_ROOT}/pumpfun/tools"
   ln -snf "${PUMPFUN_ROOT}/sdk" "${WORKSPACE_ROOT}/pumpfun/sdk"
   ln -snf "${PUMPFUN_ROOT}/tokenized-agents-skill" "${WORKSPACE_ROOT}/pumpfun/tokenized-agents-skill"
+  ln -snf "${PUMPFUN_ROOT}/pumpkit" "${WORKSPACE_ROOT}/pumpfun/pumpkit"
 
   cat > "${WORKSPACE_ROOT}/AGENTS.md" <<'EOF'
 # Pump-Fun Solana Agent Workspace
@@ -51,6 +52,7 @@ Core behavior:
 - Use `pumpfun/tokenized-agents-skill/` for the `@pump-fun/agent-payments-sdk` integration guide.
 - Use `pumpfun/x402/` for HTTP 402 payment patterns, Solana USDC micropayments, and API monetization.
 - Use `pumpfun/swarm-bot/` and `pumpfun/websocket-server/` for dashboard, realtime relay, and multi-bot coordination patterns.
+- Use `pumpfun/pumpkit/` for the modular PumpKit packages, tutorials, docs, and agent-prompts.
 - Use `pumpfun/tools/` for operational scripts and keypair verification helpers.
 - Use `pumpfun/agent-prompts/` and `pumpfun/agent-tasks/` as scaffolding and design references when extending or refactoring the Solana agent.
 - Before proposing Pump.fun transaction logic, fee logic, or monitoring logic, read the relevant local docs first instead of improvising.
@@ -59,6 +61,7 @@ Solana capabilities:
 - `solana` CLI for config, keygen, deploy, transfer
 - `solana-test-validator` for local development (clones Pump programs from mainnet)
 - `spl-token` for SPL token operations
+- `helius` CLI for Helius RPC and account tooling when configured
 - Privy agentic wallet for secure, policy-governed transaction signing
 - Full Pump-Fun SDK for token creation, trading, and fee management
 
@@ -96,6 +99,7 @@ Bundled local references for the Solana NemoClaw environment:
 - `x402/`: HTTP 402 payment protocol implementation for Solana/USDC monetization.
 - `swarm-bot/`: multi-strategy bot manager with dashboard and SQLite state.
 - `websocket-server/`: realtime Pump-Fun launch relay server for browser clients.
+- `pumpkit/`: monorepo containing reusable packages, tutorials, prompts, docs, and web dashboard code.
 - `tools/`: operational helper scripts and keypair/security utilities.
 - `agent-prompts/`: build and refactor prompts for PumpKit agent workflows.
 - `agent-tasks/`: standalone task specs describing parallel deliverables and expected bot/docs outputs.
@@ -112,6 +116,29 @@ Suggested reading order for new work:
 9. `telegram-bot/src/index.ts`
 10. `defi-agents/src/pump-fun-sdk-expert.json`
 11. `agent-app/src/app/api/pump-fun/verify-payment/route.ts`
+EOF
+
+  cat > "${WORKSPACE_ROOT}/pumpfun/PUMPKIT_TASKS.md" <<'EOF'
+# Active PumpKit Engineering Tasks
+
+Use these as current implementation priorities when working in `pumpfun/pumpkit/`.
+
+## Task 01
+- Add ESLint flat-config linting to every PumpKit package so `cd pumpkit && npx turbo lint` works across `core`, `monitor`, `channel`, `claim`, `tracker`, and `web`.
+- Follow the root ESLint style, add package `lint` scripts, install required dependencies, and fix reasonable lint failures.
+
+## Task 02
+- Add comprehensive Vitest + Testing Library coverage for `@pumpkit/web`.
+- Cover components, hooks, and lib modules under `pumpkit/packages/web/src/`.
+- Ensure `cd pumpkit && npx turbo test --filter=@pumpkit/web` passes.
+
+## Relevant PumpKit paths
+- `pumpkit/packages/`
+- `pumpkit/agent-prompts/`
+- `pumpkit/tutorials/`
+- `pumpkit/docs/`
+- `pumpkit/turbo.json`
+- `pumpkit/package.json`
 EOF
 }
 
@@ -282,8 +309,12 @@ if command -v solana &>/dev/null; then
 
   # Link SDK source and DeFi agent personas into workspace
   ln -snf "${PUMPFUN_ROOT}/sdk" "${WORKSPACE_ROOT}/pumpfun/sdk"
-  ln -snf "${PUMPFUN_ROOT}/defi-agents/personas" "${WORKSPACE_ROOT}/pumpfun/defi-agents"
+  ln -snf "${PUMPFUN_ROOT}/defi-agents" "${WORKSPACE_ROOT}/pumpfun/defi-agents"
   ln -snf "${PUMPFUN_ROOT}/tokenized-agents-skill" "${WORKSPACE_ROOT}/pumpfun/tokenized-agents-skill"
+  ln -snf "${PUMPFUN_ROOT}/pumpkit" "${WORKSPACE_ROOT}/pumpfun/pumpkit"
+  if command -v helius &>/dev/null; then
+    echo "[solana] Helius CLI: $(helius --version 2>/dev/null || echo 'available')"
+  fi
 fi
 
 # ── Privy wallet credentials ──────────────────────────────────────

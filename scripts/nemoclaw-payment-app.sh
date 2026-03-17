@@ -32,7 +32,6 @@ workspace = pathlib.Path(os.environ["WORKSPACE_ROOT"])
 root = pathlib.Path(os.environ["PUMPFUN_ROOT"])
 agent_id = os.environ["DEFI_AGENT_ID"]
 persona_path = root / "defi-agents" / "src" / f"{agent_id}.json"
-skill_path = root / "tokenized-agents-skill" / "SKILL.md"
 
 if not persona_path.exists():
     print(f"[payment-app] Persona not found: {agent_id}", file=sys.stderr)

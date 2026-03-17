@@ -202,6 +202,7 @@ async function createSandbox(gpu) {
     path.join("Pump-Fun", "docs"),
     path.join("Pump-Fun", "src"),
     path.join("Pump-Fun", "packages", "defi-agents"),
+    path.join("Pump-Fun", "pumpkit"),
     path.join("Pump-Fun", "pumpkit", "agent-prompts"),
     path.join("Pump-Fun", "telegram-bot"),
     path.join("Pump-Fun", "swarm-bot"),
@@ -471,14 +472,31 @@ async function setupSolana(sandboxName) {
   });
   console.log("");
 
-  const rpcChoice = await prompt("  Choose RPC [1]: ");
-  const rpcIdx = parseInt(rpcChoice || "1", 10) - 1;
+  const defaultRpcChoice =
+    (process.env.HELIUS_API_KEY || (existing && existing.heliusApiKey)) ? "3" : "1";
+  const rpcChoice = await prompt(`  Choose RPC [${defaultRpcChoice}]: `);
+  const rpcIdx = parseInt(rpcChoice || defaultRpcChoice, 10) - 1;
   const selected = solana.DEFAULT_RPC_OPTIONS[rpcIdx] || solana.DEFAULT_RPC_OPTIONS[0];
 
   let rpcUrl = selected.url;
+  let heliusApiKey = null;
   if (selected.key === "helius") {
-    const heliusKey = await prompt("  Helius API key: ");
-    rpcUrl = `https://mainnet.helius-rpc.com/?api-key=${heliusKey.trim()}`;
+    const detectedHeliusKey =
+      process.env.HELIUS_API_KEY ||
+      (existing && existing.heliusApiKey) ||
+      solana.extractHeliusApiKey(existing && existing.rpcUrl);
+    const heliusPrompt = detectedHeliusKey
+      ? `  Helius API key [saved ${detectedHeliusKey.slice(0, 6)}...]: `
+      : "  Helius API key: ";
+    const heliusKey = await prompt(heliusPrompt);
+    heliusApiKey = (heliusKey || detectedHeliusKey || "").trim();
+    if (!heliusApiKey) {
+      console.log("  ⚠ No Helius API key provided. Falling back to Solana Tracker RPC.");
+      rpcUrl = "https://rpc.solanatracker.io/public";
+      heliusApiKey = null;
+    } else {
+    rpcUrl = `https://mainnet.helius-rpc.com/?api-key=${heliusApiKey}`;
+    }
   } else if (selected.key === "custom") {
     rpcUrl = await prompt("  Custom RPC URL: ");
   } else if (selected.key === "local") {
@@ -578,7 +596,9 @@ async function setupSolana(sandboxName) {
   // Save config
   const config = {
     rpcUrl: rpcUrl || "https://rpc.solanatracker.io/public",
+    wsUrl: solana.deriveSolanaWsUrl(rpcUrl || "https://rpc.solanatracker.io/public"),
     rpcProvider: selected.key,
+    heliusApiKey: heliusApiKey || solana.extractHeliusApiKey(rpcUrl),
     agentTokenMint: agentTokenMint ? agentTokenMint.trim() : null,
     developerWallet: developerWallet ? developerWallet.trim() : null,
     currencyMint: "So11111111111111111111111111111111111111112",
@@ -591,6 +611,8 @@ async function setupSolana(sandboxName) {
 
   // Set env so sandbox creation picks it up
   process.env.SOLANA_RPC_URL = config.rpcUrl;
+  if (config.wsUrl) process.env.SOLANA_WS_URL = config.wsUrl;
+  if (config.heliusApiKey) process.env.HELIUS_API_KEY = config.heliusApiKey;
   if (config.agentTokenMint) process.env.AGENT_TOKEN_MINT_ADDRESS = config.agentTokenMint;
   if (config.developerWallet) process.env.DEVELOPER_WALLET = config.developerWallet;
 
@@ -753,6 +775,9 @@ function printDashboard(sandboxName, model, provider) {
       ? solConfig.rpcUrl.substring(0, 37) + '...'
       : solConfig.rpcUrl;
     console.log(`  Solana RPC   ${rpcShort}`);
+    if (solConfig.rpcProvider === "helius") {
+      console.log("  Helius       enabled");
+    }
   }
   if (wallet) {
     console.log(`  Wallet       ${wallet.address} (Privy)`);
@@ -762,6 +787,7 @@ function printDashboard(sandboxName, model, provider) {
   }
   console.log(`  ${"─".repeat(56)}`);
   console.log(`  Run:         nemoclaw ${sandboxName} connect`);
+  console.log(`  Solana Up:   nemoclaw solana start ${sandboxName}`);
   console.log(`  Status:      nemoclaw ${sandboxName} status`);
   console.log(`  Logs:        nemoclaw ${sandboxName} logs --follow`);
   console.log(`  Solana:      nemoclaw ${sandboxName} solana-agent`);

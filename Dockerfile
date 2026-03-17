@@ -46,6 +46,7 @@ COPY Pump-Fun/packages/defi-agents/README.md /opt/pump-fun/defi-agents/README.md
 COPY Pump-Fun/packages/defi-agents/llms.txt /opt/pump-fun/defi-agents/llms.txt
 COPY Pump-Fun/packages/defi-agents/llms-full.txt /opt/pump-fun/defi-agents/llms-full.txt
 COPY Pump-Fun/packages/defi-agents/src/ /opt/pump-fun/defi-agents/src/
+COPY Pump-Fun/pumpkit/ /opt/pump-fun/pumpkit/
 COPY Pump-Fun/pumpkit/agent-prompts/ /opt/pump-fun/agent-prompts/
 COPY Pump-Fun/telegram-bot/ /opt/pump-fun/telegram-bot/
 COPY Pump-Fun/swarm-bot/ /opt/pump-fun/swarm-bot/
@@ -86,12 +87,19 @@ COPY scripts/nemoclaw-payment-app.sh /usr/local/bin/nemoclaw-payment-app
 COPY scripts/nemoclaw-telegram-bot.sh /usr/local/bin/nemoclaw-telegram-bot
 COPY scripts/nemoclaw-swarm-bot.sh /usr/local/bin/nemoclaw-swarm-bot
 COPY scripts/nemoclaw-websocket-server.sh /usr/local/bin/nemoclaw-websocket-server
+COPY scripts/nemoclaw-solana-bridge.sh /usr/local/bin/nemoclaw-solana-bridge
+COPY scripts/nemoclaw-solana-stack.sh /usr/local/bin/nemoclaw-solana-stack
 RUN chmod +x /usr/local/bin/nemoclaw-start
 RUN chmod +x /usr/local/bin/nemoclaw-solana-agent
 RUN chmod +x /usr/local/bin/nemoclaw-payment-app
 RUN chmod +x /usr/local/bin/nemoclaw-telegram-bot
 RUN chmod +x /usr/local/bin/nemoclaw-swarm-bot
 RUN chmod +x /usr/local/bin/nemoclaw-websocket-server
+RUN chmod +x /usr/local/bin/nemoclaw-solana-bridge
+RUN chmod +x /usr/local/bin/nemoclaw-solana-stack
+
+# Install Helius CLI for advanced RPC operations
+RUN npm install -g helius-cli 2>/dev/null || echo 'WARN: helius-cli install skipped'
 
 WORKDIR /sandbox
 USER sandbox

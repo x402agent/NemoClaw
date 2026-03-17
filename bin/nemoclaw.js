@@ -17,12 +17,13 @@ const {
 const registry = require("./lib/registry");
 const nim = require("./lib/nim");
 const policies = require("./lib/policies");
+const solana = require("./lib/solana");
 
 // ── Global commands ──────────────────────────────────────────────
 
 const GLOBAL_COMMANDS = new Set([
   "onboard", "list", "deploy", "setup", "setup-spark",
-  "start", "stop", "status",
+  "start", "stop", "status", "solana",
   "help", "--help", "-h",
 ]);
 
@@ -63,6 +64,53 @@ function validateSandboxEnv(label, envValues, requiredKeys, optionalHint) {
     console.error(`  Optional: ${optionalHint}`);
   }
   process.exit(1);
+}
+
+function resolveSandboxName(preferredName) {
+  if (preferredName) {
+    const sandbox = registry.getSandbox(preferredName);
+    if (!sandbox) {
+      console.error(`  Unknown sandbox: ${preferredName}`);
+      process.exit(1);
+    }
+    return preferredName;
+  }
+
+  const { sandboxes, defaultSandbox } = registry.listSandboxes();
+  if (defaultSandbox && registry.getSandbox(defaultSandbox)) {
+    return defaultSandbox;
+  }
+  return sandboxes[0] ? sandboxes[0].name : null;
+}
+
+function buildSolanaRuntimeEnv() {
+  const solConfig = solana.loadSolanaConfig() || {};
+  const wallet = solana.getDefaultWallet();
+  const defaultRpc = getCredential("SOLANA_RPC_URL") || solana.getSolanaRpcUrl();
+  const defaultWs =
+    getCredential("SOLANA_WS_URL") ||
+    solana.getSolanaWsUrl() ||
+    deriveWebsocketUrl(defaultRpc);
+
+  return {
+    SOLANA_RPC_URL: defaultRpc,
+    NEXT_PUBLIC_SOLANA_RPC_URL:
+      getCredential("NEXT_PUBLIC_SOLANA_RPC_URL") ||
+      defaultRpc,
+    SOLANA_WS_URL: defaultWs,
+    HELIUS_API_KEY: getCredential("HELIUS_API_KEY") || solana.getHeliusApiKey(),
+    AGENT_TOKEN_MINT_ADDRESS:
+      getCredential("AGENT_TOKEN_MINT_ADDRESS") || solConfig.agentTokenMint,
+    DEVELOPER_WALLET:
+      getCredential("DEVELOPER_WALLET") || (wallet && wallet.address) || solConfig.developerWallet,
+    CURRENCY_MINT: getCredential("CURRENCY_MINT") || solConfig.currencyMint,
+    PRICE_AMOUNT: getCredential("PRICE_AMOUNT") || solConfig.priceAmount,
+    PRIVY_APP_ID: getCredential("PRIVY_APP_ID"),
+    PRIVY_APP_SECRET: getCredential("PRIVY_APP_SECRET"),
+    TELEGRAM_BOT_TOKEN: getCredential("TELEGRAM_BOT_TOKEN"),
+    TELEGRAM_NOTIFY_CHAT_IDS: getCredential("TELEGRAM_NOTIFY_CHAT_IDS"),
+    POLL_INTERVAL_SECONDS: getCredential("POLL_INTERVAL_SECONDS") || process.env.POLL_INTERVAL_SECONDS,
+  };
 }
 
 // ── Commands ─────────────────────────────────────────────────────
@@ -306,20 +354,7 @@ function sandboxDestroy(sandboxName) {
 }
 
 function sandboxSolanaAgent(sandboxName) {
-  const envValues = {
-    SOLANA_RPC_URL: getCredential("SOLANA_RPC_URL") || "https://rpc.solanatracker.io/public",
-    NEXT_PUBLIC_SOLANA_RPC_URL:
-      getCredential("NEXT_PUBLIC_SOLANA_RPC_URL") ||
-      getCredential("SOLANA_RPC_URL") ||
-      "https://rpc.solanatracker.io/public",
-    AGENT_TOKEN_MINT_ADDRESS: getCredential("AGENT_TOKEN_MINT_ADDRESS"),
-    DEVELOPER_WALLET: getCredential("DEVELOPER_WALLET"),
-    TELEGRAM_BOT_TOKEN: getCredential("TELEGRAM_BOT_TOKEN"),
-    TELEGRAM_NOTIFY_CHAT_IDS: getCredential("TELEGRAM_NOTIFY_CHAT_IDS"),
-    CURRENCY_MINT: getCredential("CURRENCY_MINT"),
-    PRICE_AMOUNT: getCredential("PRICE_AMOUNT"),
-    POLL_INTERVAL_SECONDS: getCredential("POLL_INTERVAL_SECONDS"),
-  };
+  const envValues = buildSolanaRuntimeEnv();
 
   validateSandboxEnv(
     "the Solana agent",
@@ -333,14 +368,7 @@ function sandboxSolanaAgent(sandboxName) {
 
 function sandboxPaymentApp(sandboxName) {
   const envValues = {
-    SOLANA_RPC_URL: getCredential("SOLANA_RPC_URL") || "https://rpc.solanatracker.io/public",
-    NEXT_PUBLIC_SOLANA_RPC_URL:
-      getCredential("NEXT_PUBLIC_SOLANA_RPC_URL") ||
-      getCredential("SOLANA_RPC_URL") ||
-      "https://rpc.solanatracker.io/public",
-    AGENT_TOKEN_MINT_ADDRESS: getCredential("AGENT_TOKEN_MINT_ADDRESS"),
-    CURRENCY_MINT: getCredential("CURRENCY_MINT"),
-    PRICE_AMOUNT: getCredential("PRICE_AMOUNT"),
+    ...buildSolanaRuntimeEnv(),
     DEFI_AGENT_ID: getCredential("DEFI_AGENT_ID") || process.env.DEFI_AGENT_ID,
     PORT: getCredential("PAYMENT_APP_PORT") || process.env.PAYMENT_APP_PORT || process.env.PORT,
   };
@@ -356,13 +384,8 @@ function sandboxPaymentApp(sandboxName) {
 }
 
 function sandboxTelegramBot(sandboxName) {
-  const rpcUrl = getCredential("SOLANA_RPC_URL") || "https://rpc.solanatracker.io/public";
   const envValues = {
-    TELEGRAM_BOT_TOKEN: getCredential("TELEGRAM_BOT_TOKEN"),
-    SOLANA_RPC_URL: rpcUrl,
-    SOLANA_WS_URL:
-      getCredential("SOLANA_WS_URL") ||
-      deriveWebsocketUrl(rpcUrl),
+    ...buildSolanaRuntimeEnv(),
     ALLOWED_USER_IDS: getCredential("ALLOWED_USER_IDS"),
     ENABLE_API: getCredential("ENABLE_API") || process.env.ENABLE_API,
     ENABLE_LAUNCH_MONITOR: getCredential("ENABLE_LAUNCH_MONITOR") || process.env.ENABLE_LAUNCH_MONITOR,
@@ -389,12 +412,8 @@ function sandboxTelegramBot(sandboxName) {
 }
 
 function sandboxSwarmBot(sandboxName) {
-  const rpcUrl = getCredential("SOLANA_RPC_URL") || "https://rpc.solanatracker.io/public";
   const envValues = {
-    SOLANA_RPC_URL: rpcUrl,
-    SOLANA_WS_URL:
-      getCredential("SOLANA_WS_URL") ||
-      deriveWebsocketUrl(rpcUrl),
+    ...buildSolanaRuntimeEnv(),
     PORT: getCredential("SWARM_BOT_PORT") || process.env.SWARM_BOT_PORT || process.env.PORT,
     DB_PATH: getCredential("DB_PATH") || process.env.DB_PATH,
     DEFAULT_SLIPPAGE_BPS: getCredential("DEFAULT_SLIPPAGE_BPS") || process.env.DEFAULT_SLIPPAGE_BPS,
@@ -410,13 +429,12 @@ function sandboxSwarmBot(sandboxName) {
 }
 
 function sandboxWebsocketServer(sandboxName) {
-  const rpcUrl = getCredential("SOLANA_RPC_URL") || "https://rpc.solanatracker.io/public";
+  const baseEnv = buildSolanaRuntimeEnv();
   const envValues = {
-    SOLANA_RPC_URL: rpcUrl,
+    ...baseEnv,
     SOLANA_RPC_WS:
       getCredential("SOLANA_RPC_WS") ||
-      getCredential("SOLANA_WS_URL") ||
-      deriveWebsocketUrl(rpcUrl),
+      baseEnv.SOLANA_WS_URL,
     PORT: getCredential("WEBSOCKET_SERVER_PORT") || process.env.WEBSOCKET_SERVER_PORT || process.env.PORT,
     IPFS_GATEWAY: getCredential("IPFS_GATEWAY") || process.env.IPFS_GATEWAY,
   };
@@ -424,21 +442,145 @@ function sandboxWebsocketServer(sandboxName) {
   runSandboxScript(sandboxName, envValues, "nemoclaw-websocket-server");
 }
 
+function sandboxSolanaStack(sandboxName) {
+  const envValues = {
+    ...buildSolanaRuntimeEnv(),
+    START_TELEGRAM_BOT: process.env.START_TELEGRAM_BOT,
+    START_SOLANA_BRIDGE: process.env.START_SOLANA_BRIDGE,
+    START_WEBSOCKET_SERVER: process.env.START_WEBSOCKET_SERVER,
+    START_PAYMENT_APP: process.env.START_PAYMENT_APP,
+    START_SWARM_BOT: process.env.START_SWARM_BOT,
+  };
+
+  validateSandboxEnv(
+    "the Solana one-shot stack",
+    envValues,
+    ["TELEGRAM_BOT_TOKEN"],
+    "SOLANA_RPC_URL, SOLANA_WS_URL, Helius/Privy config, START_PAYMENT_APP, START_SWARM_BOT."
+  );
+
+  runSandboxScript(sandboxName, envValues, "nemoclaw-solana-stack");
+}
+
+// ── One-shot Solana quick-start ──────────────────────────────────
+
+async function quickStartSolana(actionArgs = []) {
+  const subcommand = actionArgs[0] || "overview";
+
+  if (subcommand === "start" || subcommand === "up") {
+    let sandboxName = resolveSandboxName(actionArgs[1]);
+    if (!sandboxName) {
+      console.log("");
+      console.log("  No sandbox found. Running onboard first...");
+      console.log("");
+      const { onboard: runOnboard } = require("./lib/onboard");
+      await runOnboard();
+      sandboxName = resolveSandboxName(actionArgs[1]);
+      if (!sandboxName) {
+        console.error("  Failed to resolve a sandbox after onboarding.");
+        process.exit(1);
+      }
+    }
+
+    console.log("");
+    console.log(`  One-shot Solana startup → ${sandboxName}`);
+    console.log("");
+    sandboxSolanaStack(sandboxName);
+    return;
+  }
+
+  console.log("");
+  console.log("  ⚡ NemoClaw Solana Quick Start");
+  console.log("  ═══════════════════════════════");
+  console.log("");
+
+  // Check if already onboarded
+  const { sandboxes } = registry.listSandboxes();
+  if (sandboxes.length === 0) {
+    console.log("  No sandbox found. Running full onboard first...");
+    console.log("");
+    const { onboard: runOnboard } = require("./lib/onboard");
+    await runOnboard();
+    return;
+  }
+
+  // Use default sandbox
+  const sb = sandboxes[0];
+  console.log(`  Using sandbox: ${sb.name}`);
+
+  // Show Solana status
+  const solConfig = solana.loadSolanaConfig();
+  const wallet = solana.getDefaultWallet();
+
+  if (solConfig) {
+    console.log(`  RPC:    ${solConfig.rpcUrl.substring(0, 50)}...`);
+  } else {
+    console.log("  RPC:    https://rpc.solanatracker.io/public");
+  }
+
+  if (wallet) {
+    console.log(`  Wallet: ${wallet.address} (Privy)`);
+  } else {
+    console.log("  Wallet: not configured (run nemoclaw onboard)");
+  }
+
+  console.log("");
+  console.log("  Available actions:");
+  console.log(`    nemoclaw solana start ${sb.name}   One-shot startup (bridge + bot + relay)`);
+  console.log(`    nemoclaw ${sb.name} connect          Open sandbox shell`);
+  console.log(`    nemoclaw ${sb.name} solana-stack     One-shot startup inside sandbox`);
+  console.log(`    nemoclaw ${sb.name} solana-agent     Start Pump-Fun tracker bot`);
+  console.log(`    nemoclaw ${sb.name} telegram-bot     Start Telegram monitor`);
+  console.log(`    nemoclaw ${sb.name} solana-bridge    Real-time Telegram wallet narration`);
+  console.log(`    nemoclaw ${sb.name} payment-app      Payment-gated agent`);
+  console.log(`    nemoclaw ${sb.name} swarm-bot        PumpFun swarm dashboard`);
+  console.log(`    nemoclaw ${sb.name} websocket-server PumpFun launch relay`);
+  console.log(`    nemoclaw ${sb.name} status           Show full status`);
+  console.log("");
+  console.log("  Quick connect:");
+  console.log(`    nemoclaw ${sb.name} connect`);
+  console.log("");
+}
+
+// ── Solana-Telegram Bridge ───────────────────────────────────────
+
+function sandboxSolanaBridge(sandboxName) {
+  const envValues = {
+    ...buildSolanaRuntimeEnv(),
+    BRIDGE_MODE: "natural-language",
+  };
+
+  validateSandboxEnv(
+    "the Solana-Telegram bridge",
+    envValues,
+    ["TELEGRAM_BOT_TOKEN"],
+    "SOLANA_RPC_URL, DEVELOPER_WALLET, AGENT_TOKEN_MINT_ADDRESS, TELEGRAM_NOTIFY_CHAT_IDS."
+  );
+
+  runSandboxScript(sandboxName, envValues, "nemoclaw-solana-bridge");
+}
+
 // ── Help ─────────────────────────────────────────────────────────
 
 function help() {
   console.log(`
-  nemoclaw — NemoClaw CLI
+  nemoclaw — NemoClaw Autonomous Solana Agent CLI
+
+  ⚡ Quick Start:
+    nemoclaw solana                  One-shot Solana status + commands
+    nemoclaw onboard                 Interactive setup wizard (recommended)
 
   Getting Started:
-    nemoclaw onboard                 Interactive setup wizard (recommended)
-    nemoclaw setup                   Legacy setup (deprecated, use onboard)
+    nemoclaw onboard                 Interactive setup (inference + Solana + wallet)
     nemoclaw setup-spark             Set up on DGX Spark (fixes cgroup v2 + Docker)
 
   Sandbox Management:
+    nemoclaw solana start [sandbox]  One-shot startup for the Solana stack
     nemoclaw list                    List all sandboxes
     nemoclaw <name> connect          Connect to a sandbox
-    nemoclaw <name> solana-agent     Run the bundled Pump-Fun Solana tracker bot
+    nemoclaw <name> solana-stack     Start bridge + Telegram bot + relay together
+    nemoclaw <name> solana-agent     Run the Pump-Fun Solana tracker bot
+    nemoclaw <name> solana-bridge    Real-time Telegram wallet narration (natural language)
     nemoclaw <name> telegram-bot     Run the Pump-Fun Telegram monitor bot + API
     nemoclaw <name> payment-app      Run the payment-gated Pump-Fun agent app
     nemoclaw <name> swarm-bot        Run the Pump-Fun swarm dashboard
@@ -459,8 +601,15 @@ function help() {
     nemoclaw stop                    Stop all services
     nemoclaw status                  Show sandbox list and service status
 
-  Credentials are prompted on first use, then saved securely
-  in ~/.nemoclaw/credentials.json (mode 600).
+  Solana tooling inside sandbox:
+    solana config set --url <rpc>    Set Solana CLI RPC
+    solana-test-validator             Run local test-validator (Pump programs cloned)
+    solana-keygen new                Generate keypairs
+    spl-token create-token           Create SPL tokens
+    helius                           Helius RPC CLI tools
+
+  Credentials are saved securely in ~/.nemoclaw/ (mode 600).
+  Wallet private keys stay in Privy — never stored locally.
 `);
 }
 
@@ -486,6 +635,7 @@ const [cmd, ...args] = process.argv.slice(2);
       case "stop":        stop(); break;
       case "status":      showStatus(); break;
       case "list":        listSandboxes(); break;
+      case "solana":      await quickStartSolana(args); break;
       default:            help(); break;
     }
     return;
@@ -499,7 +649,9 @@ const [cmd, ...args] = process.argv.slice(2);
 
     switch (action) {
       case "connect":     sandboxConnect(cmd); break;
+      case "solana-stack": sandboxSolanaStack(cmd); break;
       case "solana-agent": sandboxSolanaAgent(cmd); break;
+      case "solana-bridge": sandboxSolanaBridge(cmd); break;
       case "telegram-bot": sandboxTelegramBot(cmd); break;
       case "payment-app": sandboxPaymentApp(cmd); break;
       case "swarm-bot":   sandboxSwarmBot(cmd); break;
@@ -511,7 +663,7 @@ const [cmd, ...args] = process.argv.slice(2);
       case "destroy":     sandboxDestroy(cmd); break;
       default:
         console.error(`  Unknown action: ${action}`);
-        console.error(`  Valid actions: connect, solana-agent, telegram-bot, payment-app, swarm-bot, websocket-server, status, logs, policy-add, policy-list, destroy`);
+        console.error(`  Valid actions: connect, solana-stack, solana-agent, solana-bridge, telegram-bot, payment-app, swarm-bot, websocket-server, status, logs, policy-add, policy-list, destroy`);
         process.exit(1);
     }
     return;

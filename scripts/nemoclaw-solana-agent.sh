@@ -8,7 +8,6 @@
 set -euo pipefail
 
 APP_DIR="/opt/pump-fun/agent-app"
-SDK_DIR="/opt/pump-fun/sdk"
 
 # ── Helpers ──────────────────────────────────────────────────────
 
@@ -29,8 +28,9 @@ warn_env() {
 
 # ── Environment ──────────────────────────────────────────────────
 
-export SOLANA_RPC_URL="${SOLANA_RPC_URL:-https://mainnet.helius-rpc.com/?api-key=6aaff09d-22ed-4300-80ea-d6a41f67ff6e}"
+export SOLANA_RPC_URL="${SOLANA_RPC_URL:-https://rpc.solanatracker.io/public}"
 export NEXT_PUBLIC_SOLANA_RPC_URL="${NEXT_PUBLIC_SOLANA_RPC_URL:-$SOLANA_RPC_URL}"
+export SOLANA_WS_URL="${SOLANA_WS_URL:-$SOLANA_RPC_URL}"
 
 # ── Mode selection ───────────────────────────────────────────────
 
@@ -46,8 +46,12 @@ case "$MODE" in
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo "[solana-agent] Starting Pump-Fun tracker bot"
     echo "[solana-agent] RPC: ${SOLANA_RPC_URL}"
+    echo "[solana-agent] WS: ${SOLANA_WS_URL}"
     echo "[solana-agent] Mint: ${AGENT_TOKEN_MINT_ADDRESS}"
     echo "[solana-agent] Dev wallet: ${DEVELOPER_WALLET}"
+    if [ -n "${HELIUS_API_KEY:-}" ]; then
+      echo "[solana-agent] Helius: configured"
+    fi
 
     # Report Solana CLI version if available
     if command -v solana &>/dev/null; then
@@ -88,6 +92,7 @@ case "$MODE" in
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo "[solana-agent] Status Report"
     echo "[solana-agent] RPC: ${SOLANA_RPC_URL}"
+    echo "[solana-agent] WS:  ${SOLANA_WS_URL}"
     echo "[solana-agent] Chain health:"
     curl -sf -X POST "${SOLANA_RPC_URL}" \
       -H "Content-Type: application/json" \
