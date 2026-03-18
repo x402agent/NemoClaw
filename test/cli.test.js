@@ -5,6 +5,7 @@ const { describe, it } = require("node:test");
 const assert = require("node:assert/strict");
 const { execSync } = require("child_process");
 const path = require("path");
+const fs = require("fs");
 
 const CLI = path.join(__dirname, "..", "bin", "nemoclaw.js");
 
@@ -60,5 +61,35 @@ describe("CLI dispatch", () => {
     assert.equal(r.code, 0);
     // With empty HOME, should say no sandboxes
     assert.ok(r.out.includes("No sandboxes"));
+  });
+
+  it("solana overview prefers active gateway last sandbox over first registry entry", () => {
+    const home = "/tmp/nemoclaw-cli-test-" + Date.now();
+    const sandboxDir = path.join(home, ".nemoclaw");
+    const openshellDir = path.join(home, ".config", "openshell", "gateways", "nemoclaw");
+    fs.mkdirSync(sandboxDir, { recursive: true });
+    fs.mkdirSync(openshellDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(sandboxDir, "sandboxes.json"),
+      JSON.stringify({
+        sandboxes: {
+          "my-assistant": { name: "my-assistant", model: "old-model", provider: "ollama-local", gpuEnabled: true, policies: [] },
+          "nemo": { name: "nemo", model: "8bit/DeepSolana", provider: "ollama-local", gpuEnabled: true, policies: [] },
+        },
+        defaultSandbox: "my-assistant",
+      }),
+    );
+    fs.mkdirSync(path.join(home, ".config", "openshell"), { recursive: true });
+    fs.writeFileSync(path.join(home, ".config", "openshell", "active_gateway"), "nemoclaw\n");
+    fs.writeFileSync(path.join(openshellDir, "last_sandbox"), "nemo\n");
+
+    const out = execSync(`node "${CLI}" solana`, {
+      encoding: "utf-8",
+      timeout: 10000,
+      env: { ...process.env, HOME: home },
+    });
+
+    assert.ok(out.includes("Using sandbox: nemo"), out);
+    assert.ok(!out.includes("Using sandbox: my-assistant"), out);
   });
 });

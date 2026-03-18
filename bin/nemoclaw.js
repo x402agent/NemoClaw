@@ -55,6 +55,105 @@ function runCaptureDetailed(cmd, opts = {}) {
   };
 }
 
+function getActiveGatewayMetadata() {
+  const gatewayName = registry.getActiveGateway && registry.getActiveGateway();
+  if (!gatewayName) {
+    return null;
+  }
+
+  const metadataPath = path.join(os.homedir(), ".config", "openshell", "gateways", gatewayName, "metadata.json");
+  try {
+    const metadata = JSON.parse(fs.readFileSync(metadataPath, "utf-8"));
+    const endpoint = metadata.gateway_endpoint || null;
+    let port = metadata.gateway_port || null;
+    if (!port && endpoint) {
+      try {
+        port = Number(new URL(endpoint).port || 443);
+      } catch {
+        port = null;
+      }
+    }
+    return {
+      gatewayName,
+      endpoint,
+      port,
+    };
+  } catch {
+    return { gatewayName, endpoint: null, port: null };
+  }
+}
+
+function getListeningProcessDetails(port) {
+  if (!port) {
+    return null;
+  }
+
+  const listener = runCaptureDetailed(`lsof -nP -iTCP:${port} -sTCP:LISTEN`);
+  if (listener.status !== 0 || !listener.output) {
+    return null;
+  }
+
+  const lines = listener.output.split(/\r?\n/).filter(Boolean);
+  if (lines.length < 2) {
+    return null;
+  }
+
+  const columns = lines[1].trim().split(/\s+/);
+  const pid = columns[1] || null;
+  let cwd = null;
+  let command = null;
+
+  if (pid) {
+    const cwdInfo = runCaptureDetailed(`lsof -a -p ${pid} -d cwd -Fn 2>/dev/null`);
+    const cwdMatch = cwdInfo.output.match(/\bn(.+)/);
+    if (cwdMatch) {
+      cwd = cwdMatch[1].trim();
+    }
+
+    const psInfo = runCaptureDetailed(`ps -p ${pid} -o command= 2>/dev/null`);
+    if (psInfo.status === 0 && psInfo.output) {
+      command = psInfo.output.trim();
+    }
+  }
+
+  return {
+    port,
+    pid,
+    summary: lines.slice(1).join("\n"),
+    cwd,
+    command,
+  };
+}
+
+function printOpenShellTransportHint(output) {
+  if (!output || !/InvalidContentType/.test(output)) {
+    return;
+  }
+
+  const gateway = getActiveGatewayMetadata();
+  if (!gateway || !gateway.port) {
+    return;
+  }
+
+  const listener = getListeningProcessDetails(gateway.port);
+  if (!listener) {
+    return;
+  }
+
+  console.error(`  Hint: gateway '${gateway.gatewayName}' expects ${gateway.endpoint || `port ${gateway.port}`}, but port ${gateway.port} is already in use.`);
+  console.error(`  Listener: ${listener.summary}`);
+  if (listener.cwd) {
+    console.error(`  Working dir: ${listener.cwd}`);
+  }
+  if (listener.command) {
+    console.error(`  Command: ${listener.command}`);
+  }
+  if (listener.cwd && listener.cwd.includes(`${path.sep}Pump-Fun${path.sep}dashboard`)) {
+    console.error("  It looks like the Pump-Fun dashboard is using the OpenShell gateway port.");
+    console.error("  Set DASHBOARD_PORT=18789 and restart the dashboard.");
+  }
+}
+
 function printSandboxHint(sandboxName, action) {
   const gatewayName = registry.getActiveGateway && registry.getActiveGateway();
   const lastSandbox = gatewayName && registry.getGatewayLastSandbox
@@ -74,6 +173,7 @@ function preflightSandboxAction(sandboxName, action) {
 
   if (probe.output) {
     console.error(probe.output);
+    printOpenShellTransportHint(probe.output);
   }
   printSandboxHint(sandboxName, action);
   console.error(`  Command failed (exit ${probe.status || 1}): openshell sandbox get "${sandboxName}"`);
@@ -85,6 +185,7 @@ function createSandboxSshConfig(sandboxName) {
   if (configResult.status !== 0) {
     if (configResult.output) {
       console.error(configResult.output);
+      printOpenShellTransportHint(configResult.output);
     }
     printSandboxHint(sandboxName, "connect");
     console.error(`  Command failed (exit ${configResult.status || 1}): openshell sandbox ssh-config "${sandboxName}"`);
@@ -369,6 +470,7 @@ function sandboxStatus(sandboxName) {
     }
   } else {
     console.log(`    OpenShell: unavailable (${liveStatus.output || "sandbox lookup failed"})`);
+    printOpenShellTransportHint(liveStatus.output);
     printSandboxHint(sandboxName, "status");
   }
 
@@ -601,8 +703,16 @@ async function quickStartSolana(actionArgs = []) {
     return;
   }
 
-  // Use default sandbox
-  const sb = sandboxes[0];
+  const sandboxName = resolveSandboxName();
+  if (!sandboxName) {
+    console.error("  Failed to resolve a registered sandbox.");
+    process.exit(1);
+  }
+  const sb = registry.getSandbox(sandboxName);
+  if (!sb) {
+    console.error(`  Sandbox registry entry missing for: ${sandboxName}`);
+    process.exit(1);
+  }
   console.log(`  Using sandbox: ${sb.name}`);
 
   // Show Solana status

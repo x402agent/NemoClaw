@@ -57,13 +57,13 @@ npm run build
 npm start
 ```
 
-Dashboard: http://localhost:8080
+Dashboard: http://localhost:18789
 
 ## Configuration
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DASHBOARD_PORT` | `8080` | HTTP server port |
+| `DASHBOARD_PORT` | `18789` | HTTP server port |
 | `DASHBOARD_API_KEY` | — | API key for authentication (optional, open if unset) |
 | `TELEGRAM_BOT_URL` | — | Telegram bot base URL (e.g. `http://localhost:3000`) |
 | `CHANNEL_BOT_URL` | — | Channel bot base URL (e.g. `http://localhost:3002`) |
@@ -148,7 +148,7 @@ COPY package.json .
 RUN npm install --production
 COPY dist/ dist/
 ENV NODE_ENV=production
-EXPOSE 8080
+EXPOSE 18789
 CMD ["node", "dist/server.js"]
 ```
 

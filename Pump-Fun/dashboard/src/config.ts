@@ -200,7 +200,7 @@ export function loadConfig(): DashboardConfig {
   }
 
   return {
-    port: Number(process.env.DASHBOARD_PORT || '8080'),
+    port: Number(process.env.DASHBOARD_PORT || '18789'),
     apiKey: process.env.DASHBOARD_API_KEY || '',
     services,
     processes,

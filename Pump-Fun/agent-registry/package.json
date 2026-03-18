@@ -1,0 +1,27 @@
+{
+  "name": "@nemoclaw/agent-registry",
+  "version": "1.0.0",
+  "description": "NemoClaw agent registration + heartbeat for 8004 Solana Agent Registry and Pump.fun",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "register": "tsx src/register.ts",
+    "heartbeat": "tsx src/heartbeat.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "8004-solana": "^0.8.0",
+    "@solana/web3.js": "^1.98.0",
+    "dotenv": "^16.4.7"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.4.0"
+  }
+}

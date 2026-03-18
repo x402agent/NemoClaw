@@ -258,7 +258,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
     eventLog.subscribe(subId, (event) => {
       if (event.service === id) {
         try {
-          res.write(`data: ${JSON.stringify({ type: 'event', ...event })}\n\n`);
+          res.write(`data: ${JSON.stringify(event)}\n\n`);
         } catch { /* connection closed */ }
       }
     });
