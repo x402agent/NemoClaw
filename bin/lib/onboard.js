@@ -207,16 +207,10 @@ async function startGateway(gpu) {
     require("child_process").spawnSync("sleep", ["2"]);
   }
 
-  // CoreDNS fix — always run. k3s-inside-Docker has broken DNS on all platforms.
-  const home = process.env.HOME || "/tmp";
-  const colimaSocket = [
-    path.join(home, ".colima/default/docker.sock"),
-    path.join(home, ".config/colima/default/docker.sock"),
-  ].find((s) => fs.existsSync(s));
-  if (colimaSocket) {
-    console.log("  Patching CoreDNS for Colima...");
-    run(`bash "${path.join(SCRIPTS, "fix-coredns.sh")}" 2>&1 || true`, { ignoreError: true });
-  }
+  // CoreDNS fix — k3s-inside-Docker can inherit an unusable resolver on
+  // Docker Desktop and Colima, so patch it after gateway startup.
+  console.log("  Patching CoreDNS...");
+  run(`bash "${path.join(SCRIPTS, "fix-coredns.sh")}" 2>&1 || true`, { ignoreError: true });
   // Give DNS a moment to propagate
   require("child_process").spawnSync("sleep", ["5"]);
 }

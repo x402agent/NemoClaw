@@ -30,13 +30,8 @@ for _sock in "$HOME/.colima/default/docker.sock" "$HOME/.config/colima/default/d
 done
 unset _sock
 
-if [ -z "${DOCKER_HOST:-}" ]; then
-  if [ -n "$COLIMA_SOCKET" ]; then
-    export DOCKER_HOST="unix://$COLIMA_SOCKET"
-  else
-    echo "Skipping CoreDNS patch: Colima socket not found."
-    exit 0
-  fi
+if [ -z "${DOCKER_HOST:-}" ] && [ -n "$COLIMA_SOCKET" ]; then
+  export DOCKER_HOST="unix://$COLIMA_SOCKET"
 fi
 
 # Find the cluster container
@@ -46,19 +41,21 @@ if [ -z "$CLUSTER" ]; then
   exit 1
 fi
 
-# Get the container's upstream DNS from /etc/resolv.conf — this is the address
-# the Docker/Colima VM uses for DNS and is reachable from k3s pods.
-# The docker bridge gateway (172.17.0.1) does NOT serve DNS in Colima.
-GATEWAY_IP=$(docker exec "$CLUSTER" grep nameserver /etc/resolv.conf | head -1 | awk '{print $2}')
+# Get the container's upstream DNS from /etc/resolv.conf.
+# On Docker Desktop this is exposed in the generated ExtServers comment.
+# On Colima/native Docker we fall back to the first non-loopback nameserver.
+GATEWAY_IP=$(docker exec "$CLUSTER" sh -lc "awk -F'[()]' '/^# ExtServers:/ {print \$2; exit}' /etc/resolv.conf" | sed 's/^host(//; s/)$//')
 if [ -z "$GATEWAY_IP" ]; then
-  echo "ERROR: Could not determine container gateway IP."
+  GATEWAY_IP=$(docker exec "$CLUSTER" sh -lc "awk '/^nameserver / {print \$2}' /etc/resolv.conf | grep -v '^127\\.' | head -1")
+fi
+if [ -z "$GATEWAY_IP" ]; then
+  echo "ERROR: Could not determine container upstream DNS."
   exit 1
 fi
 
 # Sanity check: don't use 127.x.x.x — it won't work from pods
 if [[ "$GATEWAY_IP" == 127.* ]]; then
-  echo "ERROR: Gateway IP is $GATEWAY_IP (loopback). Cannot use from k3s pods."
-  echo "Falling back to public DNS (8.8.8.8)."
+  echo "WARNING: Upstream DNS resolved to loopback ($GATEWAY_IP). Falling back to public DNS (8.8.8.8)."
   GATEWAY_IP="8.8.8.8"
 fi
 

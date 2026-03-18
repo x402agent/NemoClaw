@@ -42,13 +42,26 @@ function deriveWebsocketUrl(rpcUrl) {
   }
 }
 
+function createSandboxSshConfig(sandboxName) {
+  const configBody = runCapture(`openshell sandbox ssh-config "${sandboxName}"`);
+  const configPath = path.join(os.tmpdir(), `nemoclaw-ssh-${sandboxName}-${Date.now()}.conf`);
+  fs.writeFileSync(configPath, configBody + "\n", { mode: 0o600 });
+  return configPath;
+}
+
 function runSandboxScript(sandboxName, envValues, scriptName) {
   const exports = Object.entries(envValues)
     .filter(([, value]) => value !== undefined && value !== null && value !== "")
     .map(([key, value]) => `${key}=${shellQuote(value)}`)
     .join(" ");
   const innerCmd = exports ? `export ${exports} && ${scriptName}` : scriptName;
-  run(`openshell sandbox connect "${sandboxName}" -- bash -lc ${shellQuote(innerCmd)}`);
+  const sshConfigPath = createSandboxSshConfig(sandboxName);
+  try {
+    const remoteCmd = `bash -lc ${shellQuote(innerCmd)}`;
+    run(`ssh -F "${sshConfigPath}" "openshell-${sandboxName}" ${shellQuote(remoteCmd)}`);
+  } finally {
+    fs.unlinkSync(sshConfigPath);
+  }
 }
 
 function validateSandboxEnv(label, envValues, requiredKeys, optionalHint) {
