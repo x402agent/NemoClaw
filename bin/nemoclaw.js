@@ -42,8 +42,55 @@ function deriveWebsocketUrl(rpcUrl) {
   }
 }
 
+function runCaptureDetailed(cmd, opts = {}) {
+  const result = spawnSync("bash", ["-lc", cmd], {
+    cwd: ROOT,
+    env: { ...process.env, ...opts.env },
+    encoding: "utf-8",
+    ...opts,
+  });
+  return {
+    status: result.status || 0,
+    output: `${result.stdout || ""}${result.stderr || ""}`.trim(),
+  };
+}
+
+function printSandboxHint(sandboxName, action) {
+  const gatewayName = registry.getActiveGateway && registry.getActiveGateway();
+  const lastSandbox = gatewayName && registry.getGatewayLastSandbox
+    ? registry.getGatewayLastSandbox(gatewayName)
+    : null;
+  if (lastSandbox && lastSandbox !== sandboxName && registry.getSandbox(lastSandbox)) {
+    console.error(`  Hint: active OpenShell gateway '${gatewayName}' last used sandbox is '${lastSandbox}'.`);
+    console.error(`  Try: nemoclaw ${lastSandbox} ${action}`);
+  }
+}
+
+function preflightSandboxAction(sandboxName, action) {
+  const probe = runCaptureDetailed(`openshell sandbox get "${sandboxName}" 2>&1`);
+  if (probe.status === 0) {
+    return true;
+  }
+
+  if (probe.output) {
+    console.error(probe.output);
+  }
+  printSandboxHint(sandboxName, action);
+  console.error(`  Command failed (exit ${probe.status || 1}): openshell sandbox get "${sandboxName}"`);
+  process.exit(probe.status || 1);
+}
+
 function createSandboxSshConfig(sandboxName) {
-  const configBody = runCapture(`openshell sandbox ssh-config "${sandboxName}"`);
+  const configResult = runCaptureDetailed(`openshell sandbox ssh-config "${sandboxName}" 2>&1`);
+  if (configResult.status !== 0) {
+    if (configResult.output) {
+      console.error(configResult.output);
+    }
+    printSandboxHint(sandboxName, "connect");
+    console.error(`  Command failed (exit ${configResult.status || 1}): openshell sandbox ssh-config "${sandboxName}"`);
+    process.exit(configResult.status || 1);
+  }
+  const configBody = configResult.output;
   const configPath = path.join(os.tmpdir(), `nemoclaw-ssh-${sandboxName}-${Date.now()}.conf`);
   fs.writeFileSync(configPath, configBody + "\n", { mode: 0o600 });
   return configPath;
@@ -94,8 +141,11 @@ function resolveSandboxName(preferredName) {
   }
 
   const { sandboxes, defaultSandbox } = registry.listSandboxes();
-  if (defaultSandbox && registry.getSandbox(defaultSandbox)) {
-    return defaultSandbox;
+  const preferredDefault = registry.getPreferredDefault
+    ? registry.getPreferredDefault()
+    : defaultSandbox;
+  if (preferredDefault && registry.getSandbox(preferredDefault)) {
+    return preferredDefault;
   }
   return sandboxes[0] ? sandboxes[0].name : null;
 }
@@ -264,7 +314,10 @@ function showStatus() {
 }
 
 function listSandboxes() {
-  const { sandboxes, defaultSandbox } = registry.listSandboxes();
+  const { sandboxes } = registry.listSandboxes();
+  const defaultSandbox = registry.getPreferredDefault
+    ? registry.getPreferredDefault()
+    : registry.getDefault();
   if (sandboxes.length === 0) {
     console.log("");
     console.log("  No sandboxes registered. Run `nemoclaw onboard` to get started.");
@@ -291,6 +344,7 @@ function listSandboxes() {
 // ── Sandbox-scoped actions ───────────────────────────────────────
 
 function sandboxConnect(sandboxName) {
+  preflightSandboxAction(sandboxName, "connect");
   // Ensure port forward is alive before connecting
   run(`openshell forward start --background 18789 "${sandboxName}" 2>/dev/null || true`, { ignoreError: true });
   run(`openshell sandbox connect "${sandboxName}"`);
@@ -308,7 +362,15 @@ function sandboxStatus(sandboxName) {
   }
 
   // openshell info
-  run(`openshell sandbox get "${sandboxName}" 2>/dev/null || true`, { ignoreError: true });
+  const liveStatus = runCaptureDetailed(`openshell sandbox get "${sandboxName}" 2>&1`);
+  if (liveStatus.status === 0) {
+    if (liveStatus.output) {
+      console.log(liveStatus.output);
+    }
+  } else {
+    console.log(`    OpenShell: unavailable (${liveStatus.output || "sandbox lookup failed"})`);
+    printSandboxHint(sandboxName, "status");
+  }
 
   // NIM health
   const nimStat = nim.nimStatus(sandboxName);

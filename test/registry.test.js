@@ -14,9 +14,11 @@ process.env.HOME = tmpDir;
 const registry = require("../bin/lib/registry");
 
 const regFile = path.join(tmpDir, ".nemoclaw", "sandboxes.json");
+const openshellConfigDir = path.join(tmpDir, ".config", "openshell");
 
 beforeEach(() => {
   if (fs.existsSync(regFile)) fs.unlinkSync(regFile);
+  fs.rmSync(openshellConfigDir, { recursive: true, force: true });
 });
 
 describe("registry", () => {
@@ -101,5 +103,29 @@ describe("registry", () => {
     // Should not throw, returns empty
     const { sandboxes } = registry.listSandboxes();
     assert.equal(sandboxes.length, 0);
+  });
+
+  it("prefers the active gateway last sandbox when it is registered", () => {
+    registry.registerSandbox({ name: "old-default" });
+    registry.registerSandbox({ name: "nemo" });
+    registry.setDefault("old-default");
+
+    fs.mkdirSync(path.join(openshellConfigDir, "gateways", "nemoclaw"), { recursive: true });
+    fs.writeFileSync(path.join(openshellConfigDir, "active_gateway"), "nemoclaw\n");
+    fs.writeFileSync(path.join(openshellConfigDir, "gateways", "nemoclaw", "last_sandbox"), "nemo\n");
+
+    assert.equal(registry.getPreferredDefault(), "nemo");
+  });
+
+  it("falls back to registry default when gateway last sandbox is unregistered", () => {
+    registry.registerSandbox({ name: "alpha" });
+    registry.registerSandbox({ name: "beta" });
+    registry.setDefault("beta");
+
+    fs.mkdirSync(path.join(openshellConfigDir, "gateways", "nemoclaw"), { recursive: true });
+    fs.writeFileSync(path.join(openshellConfigDir, "active_gateway"), "nemoclaw\n");
+    fs.writeFileSync(path.join(openshellConfigDir, "gateways", "nemoclaw", "last_sandbox"), "ghost\n");
+
+    assert.equal(registry.getPreferredDefault(), "beta");
   });
 });

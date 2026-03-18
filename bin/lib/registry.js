@@ -7,6 +7,17 @@ const fs = require("fs");
 const path = require("path");
 
 const REGISTRY_FILE = path.join(process.env.HOME || "/tmp", ".nemoclaw", "sandboxes.json");
+const OPENSHELL_CONFIG_DIR = path.join(process.env.HOME || "/tmp", ".config", "openshell");
+
+function readTextFile(filePath) {
+  try {
+    if (fs.existsSync(filePath)) {
+      const value = fs.readFileSync(filePath, "utf-8").trim();
+      return value || null;
+    }
+  } catch {}
+  return null;
+}
 
 function load() {
   try {
@@ -34,6 +45,29 @@ function getDefault() {
     return data.defaultSandbox;
   }
   // Fall back to first sandbox if default is missing
+  const names = Object.keys(data.sandboxes);
+  return names.length > 0 ? names[0] : null;
+}
+
+function getActiveGateway() {
+  return readTextFile(path.join(OPENSHELL_CONFIG_DIR, "active_gateway"));
+}
+
+function getGatewayLastSandbox(gatewayName) {
+  if (!gatewayName) return null;
+  return readTextFile(path.join(OPENSHELL_CONFIG_DIR, "gateways", gatewayName, "last_sandbox"));
+}
+
+function getPreferredDefault() {
+  const data = load();
+  const gatewayName = getActiveGateway();
+  const lastSandbox = getGatewayLastSandbox(gatewayName);
+  if (lastSandbox && data.sandboxes[lastSandbox]) {
+    return lastSandbox;
+  }
+  if (data.defaultSandbox && data.sandboxes[data.defaultSandbox]) {
+    return data.defaultSandbox;
+  }
   const names = Object.keys(data.sandboxes);
   return names.length > 0 ? names[0] : null;
 }
@@ -96,6 +130,9 @@ module.exports = {
   save,
   getSandbox,
   getDefault,
+  getPreferredDefault,
+  getActiveGateway,
+  getGatewayLastSandbox,
   registerSandbox,
   updateSandbox,
   removeSandbox,
