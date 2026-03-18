@@ -50,6 +50,8 @@ unset NODE_USE_ENV_PROXY
 
 export SOLANA_RPC_URL="${SOLANA_RPC_URL:-https://rpc.solanatracker.io/public}"
 export SOLANA_WS_URL="${SOLANA_WS_URL:-$(derive_ws_url)}"
+export RES_OPTIONS="${RES_OPTIONS:-ndots:1 timeout:1 attempts:2}"
+export NODE_OPTIONS="${NODE_OPTIONS:+$NODE_OPTIONS }--dns-result-order=ipv4first"
 export ENABLE_API="${ENABLE_API:-true}"
 export ENABLE_LAUNCH_MONITOR="${ENABLE_LAUNCH_MONITOR:-true}"
 export ENABLE_GRADUATION_ALERTS="${ENABLE_GRADUATION_ALERTS:-true}"

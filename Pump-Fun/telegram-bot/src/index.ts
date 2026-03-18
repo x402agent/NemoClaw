@@ -10,6 +10,9 @@
  *   npm run build && npm start  (production)
  */
 
+import { setDefaultResultOrder } from 'node:dns';
+import { lookup } from 'node:dns/promises';
+
 import { loadConfig } from './config.js';
 import { createBot, createClaimHandler, createCreatorChangeHandler } from './bot.js';
 import type { TokenLaunchMonitorLike, PumpEventMonitorLike } from './bot.js';
@@ -26,10 +29,67 @@ import { PumpFunMonitor } from './monitor.js';
 import { loadConversationMemories, loadWatches } from './store.js';
 import { loadApiConfig, PumpFunApi } from './api/index.js';
 
+function sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function extractHostname(endpoint?: string): string | null {
+    if (!endpoint) return null;
+    try {
+        return new URL(endpoint).hostname;
+    } catch {
+        return null;
+    }
+}
+
+async function warmDnsHost(hostname: string, attempts = 5): Promise<boolean> {
+    for (let attempt = 1; attempt <= attempts; attempt += 1) {
+        try {
+            const addresses = await lookup(hostname, { all: true });
+            log.info(
+                'DNS warm-up OK for %s (%d addresses)',
+                hostname,
+                addresses.length,
+            );
+            return true;
+        } catch (err) {
+            log.warn(
+                'DNS warm-up failed for %s (attempt %d/%d):',
+                hostname,
+                attempt,
+                attempts,
+                err,
+            );
+            await sleep(Math.min(250 * attempt, 1000));
+        }
+    }
+
+    return false;
+}
+
+async function warmDns(config: ReturnType<typeof loadConfig>, apiOnly: boolean): Promise<void> {
+    const hosts = new Set<string>();
+
+    const rpcHost = extractHostname(config.solanaRpcUrl);
+    if (rpcHost) hosts.add(rpcHost);
+
+    const wsHost = extractHostname(config.solanaWsUrl);
+    if (wsHost) hosts.add(wsHost);
+
+    if (!apiOnly) {
+        hosts.add('api.telegram.org');
+    }
+
+    for (const hostname of hosts) {
+        await warmDnsHost(hostname);
+    }
+}
+
 async function main(): Promise<void> {
     // ── Load config ──────────────────────────────────────────────────────
     const config = loadConfig();
     setLogLevel(config.logLevel);
+    setDefaultResultOrder('ipv4first');
 
     const enableApi = process.env.ENABLE_API === 'true' || process.env.API_ONLY === 'true';
     const apiOnly = process.env.API_ONLY === 'true';
@@ -40,6 +100,8 @@ async function main(): Promise<void> {
     if (!apiOnly) {
         log.info('  Allowed users: %s', config.allowedUserIds.length || 'all');
     }
+
+    await warmDns(config, apiOnly);
 
     // ── Load persisted watches ───────────────────────────────────────────
     loadWatches();

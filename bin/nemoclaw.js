@@ -435,6 +435,10 @@ function sandboxTelegramBot(sandboxName) {
     envValues,
     [
       "unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy grpc_proxy GRPC_PROXY NODE_USE_ENV_PROXY",
+      "export RES_OPTIONS='ndots:1 timeout:1 attempts:2'",
+      "export NODE_OPTIONS=\"${NODE_OPTIONS:+$NODE_OPTIONS }--dns-result-order=ipv4first\"",
+      "for proc in /proc/[0-9]*; do cmd=$(tr '\\0' ' ' < \"$proc/cmdline\" 2>/dev/null || true); case \"$cmd\" in *'/sandbox/pumpfun-telegram-bot-live/node_modules/.bin/tsx src/index.ts'*|*'npm exec tsx src/index.ts'*) kill \"${proc#/proc/}\" 2>/dev/null || true;; esac; done",
+      "sleep 1",
       `ln -sfn /opt/pump-fun/telegram-bot/node_modules "${stagedApp}/node_modules"`,
       `cd "${stagedApp}"`,
       "exec npx tsx src/index.ts",
