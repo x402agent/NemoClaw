@@ -195,6 +195,16 @@
       border-color: var(--accent-solana);
       transform: translateY(-2px);
     }
+    .btn-ghost {
+      background: transparent;
+      color: var(--accent-teal);
+      border: 1px solid rgba(20,241,149,.28);
+    }
+    .btn-ghost:hover {
+      transform: translateY(-2px);
+      border-color: var(--accent-teal);
+      background: rgba(20,241,149,.08);
+    }
 
     /* ── Sections ── */
     section { padding: 6rem 2rem; }
@@ -217,6 +227,66 @@
       font-size: 1.1rem;
       max-width: 600px;
       margin-bottom: 3rem;
+    }
+
+    /* ── Install Strip ── */
+    .install-strip {
+      background:
+        radial-gradient(circle at top left, rgba(153,69,255,.18), transparent 35%),
+        radial-gradient(circle at bottom right, rgba(20,241,149,.12), transparent 35%),
+        var(--bg-secondary);
+    }
+    .install-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) minmax(320px, .75fr);
+      gap: 1.5rem;
+      align-items: stretch;
+    }
+    .install-card,
+    .install-proof {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 1.75rem;
+    }
+    .install-card h3,
+    .install-proof h3 {
+      font-size: 1.25rem;
+      margin-bottom: .75rem;
+    }
+    .install-card p,
+    .install-proof p {
+      color: var(--text-secondary);
+      margin-bottom: 1rem;
+    }
+    .install-code {
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .83rem;
+      line-height: 1.75;
+      white-space: pre-wrap;
+      color: var(--text-primary);
+      margin-bottom: 1rem;
+    }
+    .install-list {
+      display: grid;
+      gap: .9rem;
+    }
+    .install-item {
+      border-top: 1px solid rgba(255,255,255,.06);
+      padding-top: .9rem;
+    }
+    .install-item strong {
+      display: block;
+      font-size: .92rem;
+      margin-bottom: .25rem;
+    }
+    .install-item span {
+      color: var(--text-secondary);
+      font-size: .9rem;
     }
 
     /* ── Feature Grid ── */
@@ -320,6 +390,29 @@
       color: var(--text-secondary);
       font-size: .95rem;
       margin-top: 1.25rem;
+    }
+    .launch-actions {
+      display: flex;
+      gap: .75rem;
+      flex-wrap: wrap;
+      margin-top: 1rem;
+    }
+    .skill-meta {
+      display: flex;
+      gap: .75rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+    .skill-chip {
+      border-radius: 999px;
+      padding: .35rem .8rem;
+      font-size: .74rem;
+      font-weight: 700;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      background: rgba(20,241,149,.08);
+      border: 1px solid rgba(20,241,149,.18);
+      color: var(--accent-teal);
     }
 
     /* ── Commands ── */
@@ -454,6 +547,7 @@
       .stats-row { gap: 1.5rem; }
       .terminal-body { font-size: .75rem; padding: 1rem; }
       .arch-diagram { font-size: .6rem; padding: 1rem; }
+      .install-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -465,11 +559,11 @@
       <div class="hero-badge"><span class="dot"></span> Live on Solana Mainnet</div>
       <h1>
         <span class="gradient">NemoClaw</span><br>
-        One Shot on Mac.<br>One Skill for Your Agent.
+        Run It in 3 Commands.<br>Hand It to Your Agent.
       </h1>
       <p class="hero-sub">
-        Trade tokens, manage wallets, narrate on Telegram, and hand your AI agent a drop-in
-        <strong>SKILL.md</strong> so it can operate the stack safely. Powered by <strong>8bit/DeepSolana</strong> on Ollama.
+        Launch a Solana operator on your Mac, trade and narrate on Telegram, then paste one
+        <strong>SKILL.md</strong> into Claude, Codex, or Cursor so your agent can operate the stack without leaking keys.
       </p>
 
       <!-- Terminal Animation -->
@@ -482,7 +576,7 @@
         </div>
         <div class="terminal-body">
           <div class="terminal-line"><span class="prompt">$</span> <span class="cmd">npm install -g @mawdbotsonsolana/nemoclaw</span></div>
-          <div class="terminal-line"><span class="success">✓ installed v0.4.0</span></div>
+          <div class="terminal-line"><span class="success">✓ installed v0.4.1</span></div>
           <div class="terminal-line"><span class="prompt">$</span> <span class="cmd">export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"</span></div>
           <div class="terminal-line"><span class="prompt">$</span> <span class="cmd">nemoclaw onboard</span></div>
           <div class="terminal-line"><span class="comment"># Auto-detects Ollama → pulls 8bit/DeepSolana</span></div>
@@ -494,8 +588,9 @@
       </div>
 
       <div class="cta-row">
-        <a href="https://github.com/x402agent/NemoClaw" class="btn btn-primary">⭐ View on GitHub</a>
-        <a href="https://www.npmjs.com/package/@mawdbotsonsolana/nemoclaw" class="btn btn-secondary">📦 npm v0.4.0</a>
+        <a href="#mac-skill" class="btn btn-primary">Launch in 3 Commands</a>
+        <button class="btn btn-secondary" type="button" data-copy-target="macCommandText">Copy Install Block</button>
+        <button class="btn btn-ghost" type="button" data-download-target="skillText" data-download-name="NemoClaw-Mac-Launch-SKILL.md">Download SKILL.md</button>
       </div>
 
       <div class="stats-row">
@@ -514,6 +609,46 @@
         <div class="stat">
           <div class="stat-value">0</div>
           <div class="stat-label">Exposed Keys</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ INSTALL STRIP ═══════════ -->
+  <section class="install-strip">
+    <div class="container">
+      <div class="install-grid">
+        <div class="install-card">
+          <div class="section-label">Fastest Path</div>
+          <h2 class="section-title">From Zero to Agent-Operated Solana Stack in One Terminal</h2>
+          <p>Open Docker Desktop, run one block, and NemoClaw handles OpenShell, the sandbox, model routing, wallet wiring, Telegram, and Solana services.</p>
+          <div class="install-code" id="heroInstallBlock">export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+npm install -g @mawdbotsonsolana/nemoclaw
+nemoclaw onboard
+nemoclaw solana start</div>
+          <div class="launch-actions">
+            <button class="copy-btn" type="button" data-copy-target="heroInstallBlock">Copy Commands</button>
+            <button class="copy-btn" type="button" data-download-target="skillText" data-download-name="NemoClaw-Mac-Launch-SKILL.md">Download SKILL.md</button>
+            <a href="https://www.npmjs.com/package/@mawdbotsonsolana/nemoclaw" class="copy-btn" style="text-decoration:none;">Open npm</a>
+          </div>
+        </div>
+        <div class="install-proof">
+          <div class="section-label">Why Devs Care</div>
+          <h3>It ships like a tool, not a research project.</h3>
+          <div class="install-list">
+            <div class="install-item">
+              <strong>Mac-first local launch</strong>
+              <span>Three commands get you from nothing to a live sandboxed operator.</span>
+            </div>
+            <div class="install-item">
+              <strong>Agent-ready by default</strong>
+              <span>`SKILL.md` gives your coding agent clear operating rules instead of vague prompting.</span>
+            </div>
+            <div class="install-item">
+              <strong>No raw keys in git</strong>
+              <span>Privy-managed wallets and release audits keep the public story safe.</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -540,9 +675,17 @@ nemoclaw solana start</div>
         <div class="launch-card">
           <div class="skill-header">
             <h3>Copy `SKILL.md` Into Your Agent</h3>
-            <button class="copy-btn" data-copy-target="skillText">Copy</button>
+            <div class="launch-actions" style="margin-top:0;">
+              <button class="copy-btn" type="button" data-copy-target="skillText">Copy</button>
+              <button class="copy-btn" type="button" data-download-target="skillText" data-download-name="NemoClaw-Mac-Launch-SKILL.md">Download</button>
+            </div>
           </div>
           <p>Paste this into Claude, Codex, Cursor, or any agent that supports repo/system skills. It tells the agent how to launch NemoClaw and how to keep secrets out of git.</p>
+          <div class="skill-meta">
+            <span class="skill-chip">Mac</span>
+            <span class="skill-chip">OpenShell</span>
+            <span class="skill-chip">No Raw Keys</span>
+          </div>
           <div class="skill-code" id="skillText"># NemoClaw Mac Launch Skill
 Use this skill when the user wants to run NemoClaw locally on macOS.
 
@@ -807,6 +950,24 @@ Ready to make some waves in Solana trading? 🦀</div>
         setTimeout(() => {
           button.textContent = original;
         }, 1500);
+      });
+    });
+
+    document.querySelectorAll('[data-download-target]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const targetId = button.getAttribute('data-download-target');
+        const target = targetId ? document.getElementById(targetId) : null;
+        if (!target) return;
+        const fileName = button.getAttribute('data-download-name') || 'SKILL.md';
+        const blob = new Blob([target.textContent.trim() + '\n'], { type: 'text/markdown;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = fileName;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 250);
       });
     });
   </script>
