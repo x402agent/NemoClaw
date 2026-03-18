@@ -649,6 +649,7 @@ function sandboxSolanaStack(sandboxName) {
     START_WEBSOCKET_SERVER: process.env.START_WEBSOCKET_SERVER,
     START_PAYMENT_APP: process.env.START_PAYMENT_APP,
     START_SWARM_BOT: process.env.START_SWARM_BOT,
+    START_AGENT_REGISTRY: process.env.START_AGENT_REGISTRY,
   };
 
   validateSandboxEnv(

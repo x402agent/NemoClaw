@@ -22,6 +22,7 @@ START_SOLANA_BRIDGE="${START_SOLANA_BRIDGE:-true}"
 START_WEBSOCKET_SERVER="${START_WEBSOCKET_SERVER:-true}"
 START_PAYMENT_APP="${START_PAYMENT_APP:-false}"
 START_SWARM_BOT="${START_SWARM_BOT:-false}"
+START_AGENT_REGISTRY="${START_AGENT_REGISTRY:-true}"
 HEARTBEAT_SECONDS="${HEARTBEAT_SECONDS:-60}"
 MIN_WALLET_SOL="${MIN_WALLET_SOL:-0.01}"
 STOP_BALANCE_SOL="${STOP_BALANCE_SOL:-0.002}"
@@ -109,6 +110,10 @@ fi
 
 if [ "${START_SWARM_BOT}" = "true" ]; then
   start_service "swarm-bot" "nemoclaw-swarm-bot"
+fi
+
+if [ "${START_AGENT_REGISTRY}" = "true" ]; then
+  start_service "agent-registry" "nemoclaw-agent-registry"
 fi
 
 echo ""
