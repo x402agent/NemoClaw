@@ -1,10 +1,11 @@
 /**
- * PumpFun Swarms Dashboard — HTTP Server
+ * NemoClaw Operations Dashboard — HTTP Server
  *
- * Production-grade dashboard server with:
- * - REST API for bot health, events, and control
- * - SSE real-time event streaming
- * - Embedded SPA frontend (no external build tools)
+ * Full-stack dashboard with:
+ * - REST API for service health, process management, and log streaming
+ * - SSE real-time event + log streaming
+ * - ProcessManager for starting/stopping/restarting services
+ * - Embedded SPA frontend
  * - API key authentication
  * - CORS support
  * - Graceful shutdown
@@ -14,16 +15,54 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { loadConfig } from './config.js';
 import { HealthPoller } from './health.js';
 import { EventLog } from './events.js';
+import { ProcessManager } from './process-manager.js';
 import { renderDashboard } from './ui.js';
 
 const config = loadConfig();
 const poller = new HealthPoller(config.services);
 const eventLog = new EventLog();
+const procManager = new ProcessManager();
+
+// ── Register managed processes ──────────────────────────────────────
+for (const proc of config.processes) {
+  procManager.register({
+    id: proc.id,
+    name: proc.name,
+    cwd: proc.cwd,
+    command: proc.command,
+    args: proc.args,
+    env: proc.env,
+    autoRestart: true,
+    maxRestarts: 10,
+  });
+}
+
+// Wire process logs to event log
+procManager.onLogEntry((botId, entry) => {
+  // Only push system and stderr to event log (stdout is too noisy)
+  if (entry.stream === 'system' || entry.stream === 'stderr') {
+    eventLog.push({
+      service: botId,
+      type: entry.stream === 'stderr' ? 'error' : 'info',
+      title: entry.text.substring(0, 120),
+      details: { stream: entry.stream },
+    });
+  }
+});
+
+procManager.onStatusChange((botId, status, detail) => {
+  eventLog.push({
+    service: botId,
+    type: status === 'crashed' ? 'error' : status === 'running' ? 'info' : 'health_change',
+    title: `${botId} → ${status}${detail ? `: ${detail}` : ''}`,
+    details: { status, detail },
+  });
+});
 
 // ── Auth ──────────────────────────────────────────────────────────────
 
 function authenticate(req: IncomingMessage): boolean {
-  if (!config.apiKey) return true; // no key = open
+  if (!config.apiKey) return true;
   const authHeader = req.headers['authorization'] || '';
   const apiKeyHeader = req.headers['x-api-key'] || '';
   if (apiKeyHeader === config.apiKey) return true;
@@ -44,7 +83,7 @@ function json(res: ServerResponse, status: number, data: unknown): void {
 
 function cors(res: ServerResponse): void {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key');
 }
 
@@ -71,17 +110,18 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
   // Dashboard SPA
   if (req.method === 'GET' && (path === '/' || path === '/index.html')) {
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-    res.end(renderDashboard());
+    res.end(renderDashboard(config));
     return;
   }
 
   // Health (for this dashboard itself)
   if (req.method === 'GET' && path === '/health') {
     json(res, 200, {
-      service: 'dashboard',
+      service: 'nemoclaw-dashboard',
       status: 'ok',
       uptimeMs: Date.now() - startedAt,
       services: poller.getAll().length,
+      processes: procManager.getAll().length,
       sseClients: eventLog.subscriberCount,
     });
     return;
@@ -105,17 +145,137 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
     return;
   }
 
-  // Single service health
-  if (req.method === 'GET' && path.startsWith('/api/services/')) {
-    const id = path.split('/')[3];
-    if (!id) { json(res, 400, { error: 'Missing service ID' }); return; }
-    const svc = poller.get(id);
-    if (!svc) { json(res, 404, { error: 'Service not found' }); return; }
-    json(res, 200, svc);
+  // ── Process management ──────────────────────────────────────────
+
+  // List all processes
+  if (req.method === 'GET' && path === '/api/processes') {
+    json(res, 200, {
+      processes: procManager.getAll(),
+      definitions: config.processes.map((p) => ({
+        id: p.id,
+        name: p.name,
+        icon: p.icon,
+        description: p.description,
+      })),
+    });
     return;
   }
 
-  // Event log
+  // Get single process
+  if (req.method === 'GET' && path.match(/^\/api\/processes\/[^/]+$/)) {
+    const id = path.split('/')[3];
+    const proc = procManager.get(id!);
+    if (!proc) { json(res, 404, { error: 'Process not found' }); return; }
+    const def = config.processes.find((p) => p.id === id);
+    json(res, 200, { ...proc, icon: def?.icon, description: def?.description });
+    return;
+  }
+
+  // Start process
+  if (req.method === 'POST' && path.match(/^\/api\/processes\/[^/]+\/start$/)) {
+    const id = path.split('/')[3]!;
+    try {
+      await procManager.start(id);
+      json(res, 200, { message: `Started ${id}`, process: procManager.get(id) });
+    } catch (err) {
+      json(res, 400, { error: (err as Error).message });
+    }
+    return;
+  }
+
+  // Stop process
+  if (req.method === 'POST' && path.match(/^\/api\/processes\/[^/]+\/stop$/)) {
+    const id = path.split('/')[3]!;
+    try {
+      await procManager.stop(id);
+      json(res, 200, { message: `Stopped ${id}`, process: procManager.get(id) });
+    } catch (err) {
+      json(res, 400, { error: (err as Error).message });
+    }
+    return;
+  }
+
+  // Restart process
+  if (req.method === 'POST' && path.match(/^\/api\/processes\/[^/]+\/restart$/)) {
+    const id = path.split('/')[3]!;
+    try {
+      await procManager.restart(id);
+      json(res, 200, { message: `Restarted ${id}`, process: procManager.get(id) });
+    } catch (err) {
+      json(res, 400, { error: (err as Error).message });
+    }
+    return;
+  }
+
+  // Get process logs
+  if (req.method === 'GET' && path.match(/^\/api\/processes\/[^/]+\/logs$/)) {
+    const id = path.split('/')[3]!;
+    const lines = Math.min(Number(query.get('lines') || '200'), 2000);
+    const stream = query.get('stream') as 'stdout' | 'stderr' | 'system' | undefined;
+    const logs = procManager.getLogs(id, lines, stream || undefined);
+    json(res, 200, { id, logs, total: logs.length });
+    return;
+  }
+
+  // Clear process logs
+  if (req.method === 'DELETE' && path.match(/^\/api\/processes\/[^/]+\/logs$/)) {
+    const id = path.split('/')[3]!;
+    procManager.clearLogs(id);
+    json(res, 200, { message: `Cleared logs for ${id}` });
+    return;
+  }
+
+  // ── Log stream (SSE for a specific process) ──────────────────────
+
+  if (req.method === 'GET' && path.match(/^\/api\/processes\/[^/]+\/stream$/)) {
+    const id = path.split('/')[3]!;
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'X-Accel-Buffering': 'no',
+    });
+
+    // Send recent logs
+    const recent = procManager.getLogs(id, 100);
+    for (const entry of recent) {
+      res.write(`data: ${JSON.stringify({ type: 'log', botId: id, ...entry })}\n\n`);
+    }
+
+    const subId = `log_${id}_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+
+    // Subscribe to new logs
+    const origOnLog = procManager['onLog'];
+    const logHandler = (botId: string, entry: any) => {
+      if (botId === id) {
+        try {
+          res.write(`data: ${JSON.stringify({ type: 'log', botId, ...entry })}\n\n`);
+        } catch { /* connection closed */ }
+      }
+    };
+
+    // We use event log subscription to forward process events
+    eventLog.subscribe(subId, (event) => {
+      if (event.service === id) {
+        try {
+          res.write(`data: ${JSON.stringify({ type: 'event', ...event })}\n\n`);
+        } catch { /* connection closed */ }
+      }
+    });
+
+    const heartbeat = setInterval(() => {
+      try { res.write(`: heartbeat\n\n`); } catch { /* closed */ }
+    }, 15_000);
+
+    req.on('close', () => {
+      eventLog.unsubscribe(subId);
+      clearInterval(heartbeat);
+    });
+    return;
+  }
+
+  // ── Event log ──────────────────────────────────────────────────
+
   if (req.method === 'GET' && path === '/api/events') {
     const limit = Math.min(Number(query.get('limit') || '50'), 200);
     const service = query.get('service') || '';
@@ -126,7 +286,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
     return;
   }
 
-  // SSE stream
+  // SSE stream (all events)
   if (req.method === 'GET' && path === '/api/events/stream') {
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
@@ -137,29 +297,46 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
 
     const subId = `sse_${Date.now()}_${Math.random().toString(36).slice(2)}`;
 
-    // Send initial state
-    res.write(`data: ${JSON.stringify({ type: 'init', services: poller.getAll(), recentEvents: eventLog.getRecent(20) })}\n\n`);
+    res.write(`data: ${JSON.stringify({
+      type: 'init',
+      services: poller.getAll(),
+      processes: procManager.getAll(),
+      processDefinitions: config.processes.map((p) => ({ id: p.id, name: p.name, icon: p.icon, description: p.description })),
+      recentEvents: eventLog.getRecent(20),
+      config: {
+        solanaRpcUrl: config.solanaRpcUrl.replace(/api-key=[^&]+/, 'api-key=***'),
+        walletAddress: config.walletAddress,
+        inferenceModel: config.inferenceModel,
+        inferenceProvider: config.inferenceProvider,
+        sandboxName: config.sandboxName,
+      },
+    })}\n\n`);
 
-    // Subscribe to updates
     eventLog.subscribe(subId, (event) => {
-      res.write(`data: ${JSON.stringify(event)}\n\n`);
+      try { res.write(`data: ${JSON.stringify(event)}\n\n`); } catch { /* closed */ }
     });
 
-    // Heartbeat
     const heartbeat = setInterval(() => {
-      res.write(`: heartbeat\n\n`);
+      try { res.write(`: heartbeat\n\n`); } catch { /* closed */ }
     }, 15_000);
+
+    // Periodic process state push
+    const procPoll = setInterval(() => {
+      try {
+        res.write(`data: ${JSON.stringify({ type: 'process_update', processes: procManager.getAll() })}\n\n`);
+      } catch { /* closed */ }
+    }, 5_000);
 
     req.on('close', () => {
       eventLog.unsubscribe(subId);
       clearInterval(heartbeat);
+      clearInterval(procPoll);
     });
     return;
   }
 
-  // Force re-poll a service
+  // Force re-poll services
   if (req.method === 'POST' && path === '/api/services/refresh') {
-    await Promise.resolve(); // allow any pending I/O
     poller.stop();
     await poller.start();
     json(res, 200, { message: 'Refreshed', services: poller.getAll() });
@@ -169,15 +346,27 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
   // Dashboard stats summary
   if (req.method === 'GET' && path === '/api/stats') {
     const services = poller.getAll();
+    const processes = procManager.getAll();
     json(res, 200, {
       totalServices: services.length,
       healthy: services.filter((s) => s.status === 'healthy').length,
       degraded: services.filter((s) => s.status === 'degraded').length,
       down: services.filter((s) => s.status === 'down').length,
       unknown: services.filter((s) => s.status === 'unknown').length,
+      totalProcesses: processes.length,
+      processesRunning: processes.filter((p) => p.status === 'running').length,
+      processesStopped: processes.filter((p) => p.status === 'stopped').length,
+      processesCrashed: processes.filter((p) => p.status === 'crashed').length,
       totalEvents: eventLog.size,
       sseClients: eventLog.subscriberCount,
       uptimeMs: Date.now() - startedAt,
+      config: {
+        solanaRpcUrl: config.solanaRpcUrl.replace(/api-key=[^&]+/, 'api-key=***'),
+        walletAddress: config.walletAddress,
+        inferenceModel: config.inferenceModel,
+        inferenceProvider: config.inferenceProvider,
+        sandboxName: config.sandboxName,
+      },
     });
     return;
   }
@@ -218,16 +407,31 @@ const server = createServer((req, res) => {
 async function main(): Promise<void> {
   startedAt = Date.now();
 
-  console.log('╔══════════════════════════════════════════════╗');
-  console.log('║     PumpFun Swarms Dashboard                ║');
-  console.log('╠══════════════════════════════════════════════╣');
-  console.log(`║  Port:     ${String(config.port).padEnd(33)}║`);
-  console.log(`║  Services: ${String(config.services.length).padEnd(33)}║`);
-  console.log(`║  Auth:     ${(config.apiKey ? 'API Key' : 'Open').padEnd(33)}║`);
-  console.log('╚══════════════════════════════════════════════╝');
+  console.log('');
+  console.log('  ╔══════════════════════════════════════════════════╗');
+  console.log('  ║     🦀 NemoClaw Operations Dashboard             ║');
+  console.log('  ╠══════════════════════════════════════════════════╣');
+  console.log(`  ║  Port:       ${String(config.port).padEnd(37)}║`);
+  console.log(`  ║  Services:   ${String(config.services.length).padEnd(37)}║`);
+  console.log(`  ║  Processes:  ${String(config.processes.length).padEnd(37)}║`);
+  console.log(`  ║  Model:      ${config.inferenceModel.padEnd(37)}║`);
+  console.log(`  ║  Auth:       ${(config.apiKey ? 'API Key' : 'Open').padEnd(37)}║`);
+  console.log('  ╚══════════════════════════════════════════════════╝');
 
-  for (const svc of config.services) {
-    console.log(`  → ${svc.name}: ${svc.url}${svc.healthPath}`);
+  if (config.services.length > 0) {
+    console.log('');
+    console.log('  Health checks:');
+    for (const svc of config.services) {
+      console.log(`    → ${svc.name}: ${svc.url}${svc.healthPath}`);
+    }
+  }
+
+  if (config.processes.length > 0) {
+    console.log('');
+    console.log('  Managed processes:');
+    for (const proc of config.processes) {
+      console.log(`    → ${proc.icon} ${proc.name}: ${proc.cwd}`);
+    }
   }
 
   await poller.start();
@@ -235,26 +439,31 @@ async function main(): Promise<void> {
   eventLog.push({
     service: 'dashboard',
     type: 'info',
-    title: 'Dashboard started',
-    details: { services: config.services.length },
+    title: 'NemoClaw Dashboard started',
+    details: {
+      services: config.services.length,
+      processes: config.processes.length,
+      model: config.inferenceModel,
+    },
   });
 
   server.listen(config.port, () => {
-    console.log(`\n✓ Dashboard live at http://localhost:${config.port}\n`);
+    console.log(`\n  ✓ Dashboard live at http://localhost:${config.port}\n`);
   });
 }
 
 // ── Graceful shutdown ────────────────────────────────────────────────
 
-function shutdown(): void {
-  console.log('\nShutting down dashboard...');
+async function shutdown(): Promise<void> {
+  console.log('\n  Shutting down dashboard...');
   poller.stop();
+  await procManager.stopAll();
   server.close();
   process.exit(0);
 }
 
-process.on('SIGINT', shutdown);
-process.on('SIGTERM', shutdown);
+process.on('SIGINT', () => { shutdown(); });
+process.on('SIGTERM', () => { shutdown(); });
 
 main().catch((err) => {
   console.error('Fatal:', err);
