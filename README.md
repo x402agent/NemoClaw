@@ -10,6 +10,7 @@
   <img src="https://img.shields.io/badge/Solana-Mainnet-9945FF?style=flat-square&logo=solana&logoColor=white" alt="Solana">
   <img src="https://img.shields.io/badge/Telegram-Bot-26A5E4?style=flat-square&logo=telegram&logoColor=white" alt="Telegram">
   <img src="https://img.shields.io/badge/Ollama-DeepSolana-000000?style=flat-square&logo=ollama&logoColor=white" alt="DeepSolana">
+  <img src="https://img.shields.io/badge/8004-Agent_Registry-7c5cfc?style=flat-square" alt="8004 Registry">
 </p>
 
 ---
@@ -28,9 +29,9 @@ nemoclaw solana start
 
 ---
 
-## 🍎 One Shot on Mac
+## One Shot on Mac
 
-If you want the fastest local path on macOS, use this exact flow:
+If you want the fastest developer path on macOS, use this exact flow:
 
 ```bash
 export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
@@ -39,64 +40,61 @@ nemoclaw onboard
 nemoclaw solana start
 ```
 
-Requirements:
-- Docker Desktop is open.
-- Ollama is optional. If present, NemoClaw auto-selects `8bit/DeepSolana`; otherwise you can use cloud inference.
-
-If the OpenShell gateway ever drops but your cluster still exists:
+If the OpenShell gateway has stopped but the cluster still exists:
 
 ```bash
 docker start openshell-cluster-nemoclaw
 ```
 
----
+## Copy-Paste `SKILL.md`
 
-## 📋 Copy-Paste `SKILL.md`
+Paste [`SKILL.md`](./SKILL.md) into Claude, Codex, Cursor, or any agent that supports repo or system skills.
 
-Paste [`SKILL.md`](./SKILL.md) into Claude, Codex, Cursor, or any agent that supports repo skills/system instructions.
+That gives the agent a drop-in operating guide for:
+- launching NemoClaw locally on macOS
+- keeping secrets out of git and logs
+- using Privy-managed wallets and runtime environment variables
+- recovering the OpenShell gateway safely
 
-That skill tells the agent to:
-- install and onboard NemoClaw on macOS
-- keep secrets out of git and out of logs
-- use Privy-managed wallets and runtime environment variables
-- recover the OpenShell gateway safely if it stops responding
-
-This is the developer path we want to feature publicly at `nemo.nanosolana.com`: one-shot local launch on Mac, plus a drop-in skill your AI agent can immediately use.
+This is the public developer path to feature at `nemo.nanosolana.com`: one-shot local launch on Mac, plus one skill file your agent can immediately use.
 
 ---
 
-## ⚡ What You Get
+## What You Get
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                                                                 │
-│   🧠 DeepSolana Model ── 8bit/DeepSolana via Ollama.           │
-│   │                       Solana-tuned LLM. Auto-pulled.       │
-│   │                       Understands DeFi, Pump-Fun, wallets. │
+│   DeepSolana Model ─── 8bit/DeepSolana via Ollama.              │
+│   │                     Solana-tuned LLM. Auto-pulled.          │
 │   │                                                             │
-│   🔐 Encrypted Wallet ─── Privy server wallet. Private keys    │
-│   │                       never leave Privy infrastructure.     │
-│   │                       Spending policies enforced on-chain.  │
+│   Encrypted Wallet ──── Privy server wallet. Private keys       │
+│   │                     never leave Privy infrastructure.        │
 │   │                                                             │
-│   🤖 Telegram Bridge ──── Natural-language narration of every   │
-│   │                       trade, transfer, and interaction.     │
-│   │                       /balance /holdings /status /lasttrade  │
+│   Telegram Bridge ───── Natural-language narration of every      │
+│   │                     trade, transfer, and interaction.        │
 │   │                                                             │
-│   💎 Pump-Fun SDK ──────── Token creation, trading, claims,     │
-│   │                       buybacks, PumpKit monorepo, x402.     │
+│   Pump-Fun SDK ──────── Token creation, trading, claims,        │
+│   │                     buybacks, PumpKit monorepo, x402.        │
 │   │                                                             │
-│   🧠 43 DeFi Personas ─── Yield farmer, whale watcher, MEV     │
-│   │                       advisor, risk engine, tax strategist. │
+│   8004 Agent Registry ─ On-chain identity, ATOM reputation,     │
+│   │                     heartbeat liveness, trust tiers.         │
 │   │                                                             │
-│   🛡️ Sandboxed ─────────── Landlock + seccomp + netns via       │
-│                            NVIDIA OpenShell. Deny-all default.  │
+│   Ops Dashboard ─────── Real-time process management, log       │
+│   │                     streaming, service health monitoring.    │
+│   │                                                             │
+│   43 DeFi Personas ──── Yield farmer, whale watcher, MEV        │
+│   │                     advisor, risk engine, tax strategist.    │
+│   │                                                             │
+│   Sandboxed ──────────── Landlock + seccomp + netns via          │
+│                          NVIDIA OpenShell. Deny-all default.     │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Install
 
@@ -118,8 +116,8 @@ The wizard walks through **9 steps**:
 |:---:|---|
 | 1 | **Preflight** — Docker, OpenShell, GPU detection |
 | 2 | **Gateway** — Start the OpenShell gateway |
-| 3 | **Sandbox** — Build Docker image (Solana CLI v3.1.9 via Agave installer, Pump-Fun SDK, 43 DeFi personas) |
-| 4 | **Inference** — Auto-detects Ollama → pulls `8bit/DeepSolana`. Or pick NVIDIA Cloud / vLLM |
+| 3 | **Sandbox** — Build Docker image (Solana CLI v3.1.9, Pump-Fun SDK, 43 DeFi personas) |
+| 4 | **Inference** — Auto-detects Ollama, pulls `8bit/DeepSolana`. Or pick NVIDIA Cloud / vLLM |
 | 5 | **Provider** — Configure the inference endpoint |
 | 6 | **OpenClaw** — Install the agent framework in the sandbox |
 | 7 | **Solana & Wallet** — RPC URL (Helius default), Privy agentic wallet, Pump-Fun token |
@@ -147,17 +145,127 @@ One command spins up the full Solana operator stack inside the sandbox:
 
 | Service | What it does |
 |---|---|
-| ✅ **Telegram Monitor** | Pump-Fun alerts, launch tracking, graduation events, whale detection |
-| ✅ **Wallet Bridge** | Natural-language narration of buys, sells, transfers, program interactions |
-| ✅ **WebSocket Relay** | Real-time launch feed for dashboards and downstream bots |
-| ☐ **Payment App** | Payment-gated agent (enable: `START_PAYMENT_APP=true`) |
-| ☐ **Swarm Bot** | Multi-bot orchestration dashboard (enable: `START_SWARM_BOT=true`) |
+| **Telegram Monitor** | Pump-Fun alerts, launch tracking, graduation events, whale detection |
+| **Wallet Bridge** | Natural-language narration of buys, sells, transfers, program interactions |
+| **WebSocket Relay** | Real-time launch feed for dashboards and downstream bots |
+| **Agent Registry** | 8004 on-chain registration + heartbeat liveness (default on) |
+| Payment App | Payment-gated agent (enable: `START_PAYMENT_APP=true`) |
+| Swarm Bot | Multi-bot orchestration dashboard (enable: `START_SWARM_BOT=true`) |
 
 ---
 
-## 🧠 Default Model: `8bit/DeepSolana`
+## Operations Dashboard
 
-NemoClaw ships with **8bit/DeepSolana** as the default inference model, auto-pulled via Ollama during onboard. It's a Solana-tuned model that understands Pump-Fun mechanics, token launches, DeFi strategies, and wallet narration out of the box.
+NemoClaw includes a real-time operations dashboard for monitoring all running services, viewing logs, and controlling processes.
+
+### Start the Dashboard
+
+```bash
+cd Pump-Fun/dashboard
+SANDBOX_NAME=nemo npx tsx src/server.ts
+```
+
+Opens at `http://localhost:18789`.
+
+### Features
+
+| Feature | Description |
+|---|---|
+| **System Overview** | Sandbox name, model, provider, wallet, RPC at a glance |
+| **Process Cards** | Start/stop/restart any managed service from the browser |
+| **Live Log Viewer** | Full-screen log viewer with stdout/stderr/system filtering |
+| **Service Health** | Auto-polls Ollama, Telegram bot, WebSocket relay health endpoints |
+| **Event Feed** | SSE-powered real-time stream of health changes, process events, errors |
+| **Stats Row** | Running/stopped processes, healthy services, event count, uptime |
+
+### Auto-detected Processes
+
+The dashboard auto-discovers services from the `Pump-Fun/` directory:
+
+- Telegram Bot (`telegram-bot/`)
+- WebSocket Relay (`websocket-server/`)
+- Agent App (`agent-app/`)
+- Swarm Bot (`swarm-bot/`)
+
+### API Endpoints
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/health` | Dashboard health check |
+| `GET` | `/api/processes` | List all managed processes |
+| `POST` | `/api/processes/:id/start` | Start a process |
+| `POST` | `/api/processes/:id/stop` | Stop a process |
+| `POST` | `/api/processes/:id/restart` | Restart a process |
+| `GET` | `/api/processes/:id/logs` | Get process logs |
+| `GET` | `/api/processes/:id/stream` | SSE log stream for a process |
+| `GET` | `/api/services` | Service health summary |
+| `GET` | `/api/events/stream` | SSE event stream (all services) |
+| `GET` | `/api/stats` | Dashboard summary stats |
+
+---
+
+## 8004 Agent Registry
+
+NemoClaw registers itself on the [8004 Trustless Agent Registry](https://github.com/QuantuLabs/8004-solana-ts) at deploy time, then heartbeats to maintain on-chain reputation via the ATOM engine.
+
+### What Happens at Deploy
+
+1. **Registration** — Creates an agent NFT on the 8004 registry with ATOM reputation enabled
+2. **Pump.fun Verification** — Verifies the agent token mint exists on-chain
+3. **Wallet Binding** — Sets the operational wallet on the registry entry
+4. **Heartbeat** — Starts periodic liveness + uptime feedback
+
+### Heartbeat
+
+The heartbeat runs every 60 seconds (configurable) and:
+
+- Checks Solana RPC health + latency
+- Checks wallet SOL balance and token ownership
+- Submits **uptime** and **responseTime** feedback to the 8004 registry every 15 minutes
+- Warns when wallet balance drops below 0.01 SOL
+
+### Enable On-chain Registration
+
+Registration requires a Solana keypair for signing:
+
+```bash
+# Generate a keypair
+solana-keygen new --outfile ~/.nemoclaw/agent-keypair.json
+
+# Set the private key (JSON array format)
+export SOLANA_PRIVATE_KEY='[1,2,3,...]'
+
+# Optional: IPFS metadata via Pinata
+export PINATA_JWT='your-pinata-jwt'
+```
+
+### Run Standalone
+
+```bash
+cd Pump-Fun/agent-registry
+npm install
+npm start              # Register + heartbeat
+npm run register       # Registration only
+npm run heartbeat      # Heartbeat only
+```
+
+### Configuration
+
+| Variable | Default | Description |
+|---|---|---|
+| `SOLANA_PRIVATE_KEY` | — | JSON array of secret key bytes (required for on-chain registration) |
+| `REGISTRY_CLUSTER` | `mainnet-beta` | `mainnet-beta` or `devnet` |
+| `HEARTBEAT_INTERVAL_SECONDS` | `60` | Heartbeat tick interval |
+| `HEARTBEAT_ENABLED` | `true` | Enable/disable heartbeat |
+| `START_AGENT_REGISTRY` | `true` | Enable in solana-stack |
+| `PINATA_JWT` | — | Pinata JWT for IPFS metadata upload |
+| `AGENT_NAME` | `NemoClaw` | Agent display name in registry |
+
+---
+
+## Default Model: `8bit/DeepSolana`
+
+NemoClaw ships with **8bit/DeepSolana** as the default inference model, auto-pulled via Ollama during onboard.
 
 ### Setup
 
@@ -186,52 +294,27 @@ curl http://localhost:11434/v1/chat/completions \
 ### Switching Models
 
 ```bash
-# Pull any model
 ollama pull llama3
-
-# Update the inference route
 openshell inference set --no-verify --provider ollama-local --model llama3
-
-# Or use NVIDIA Cloud
-openshell provider create --name nvidia --type openai \
-  --credential "OPENAI_API_KEY=nvapi-YOUR-KEY" \
-  --config "OPENAI_BASE_URL=https://integrate.api.nvidia.com/v1"
-openshell inference set --provider nvidia --model nvidia/llama-3.3-70b-instruct
 ```
 
 ---
 
-## 🐳 Sandbox
+## Sandbox
 
-NemoClaw runs inside a hardened OpenShell sandbox container. The sandbox is created from the community `openclaw` image and includes all Solana tooling pre-installed.
-
-### Creating a Sandbox
-
-```bash
-# Automated (during onboard)
-nemoclaw onboard
-
-# Manual
-openshell sandbox create --name deep-solana --from openclaw
-```
+NemoClaw runs inside a hardened OpenShell sandbox container with all Solana tooling pre-installed.
 
 ### What's Inside
 
-The sandbox container includes:
-- **Solana CLI v3.1.9 via Agave installer** — Full Solana toolchain
+- **Solana CLI v3.1.9** — Full Solana toolchain (x86_64 only; skipped on arm64)
 - **helius-cli** — Helius RPC direct access
 - **OpenClaw 2026.3.x** — Agent framework
-- **Python 3.13** — For custom scripts
-- **Node.js 20+** — For bot runtimes
-
-On Apple Silicon hosts, OpenShell builds the sandbox as Linux `arm64`. Agave does not currently publish Linux `arm64` CLI installers, so `solana`, `solana-test-validator`, and `spl-token` may be skipped in that sandbox image while the rest of NemoClaw still works.
+- **Python 3.13 + Node.js 20+** — Bot runtimes
 - **43 DeFi persona JSONs** — Agent personalities
 - **Pump-Fun SDK** — Token operations
 - **Privy wallet skill** — Encrypted key management
 
 ### Sandbox Network Policies
-
-Every outbound request from the sandbox is governed by policy. Pre-configured presets:
 
 | Preset | Endpoints Allowed |
 |---|---|
@@ -245,34 +328,19 @@ Every outbound request from the sandbox is governed by policy. Pre-configured pr
 
 ---
 
-## 🔐 Wallet Commands
-
-Create and manage encrypted Privy agentic wallets without running the full onboard:
+## Wallet Commands
 
 ```bash
-nemoclaw wallet create    # → Prompts for Privy creds → creates Solana wallet
-nemoclaw wallet list      # → Shows all wallets with addresses and chain types
-nemoclaw wallet status    # → Privy config, wallet count, default address
+nemoclaw wallet create    # Prompts for Privy creds, creates Solana wallet
+nemoclaw wallet list      # Shows all wallets with addresses and chain types
+nemoclaw wallet status    # Privy config, wallet count, default address
 ```
 
 Private keys **never leave Privy infrastructure** and are **never stored locally**.
-Default spending policy: **0.1 SOL per transaction** (configurable).
 
 ---
 
-## 📡 Telegram Bot
-
-When the bridge is running, your agent speaks on Telegram:
-
-```
-🟢 Wallet Buy Detected
-
-Our agent wallet just spent 0.05 SOL to buy a token.
-Token: 4xKp...9nZe
-Amount: 1,250,000
-Provider: Helius RPC
-View on Solscan →
-```
+## Telegram Bot
 
 ### Commands
 
@@ -281,37 +349,29 @@ View on Solscan →
 | `/start` | Welcome + capabilities overview |
 | `/balance` | SOL balance + top 8 token holdings |
 | `/holdings` | Detailed token positions |
-| `/status` | Uptime, transactions narrated, RPC provider, Privy status |
+| `/status` | Uptime, transactions narrated, RPC provider |
 | `/wallet` | Wallet address (copyable) |
-| `/rpc` | Current RPC endpoint and version |
-| `/lasttrade` | Re-narrate the most recent detected event |
-
-### Event Types
-
-| Icon | Event | Example narration |
-|---|---|---|
-| 🟢 | **Buy** | "Our agent wallet just spent **0.05 SOL** to buy a token" |
-| 🔴 | **Sell** | "Our agent wallet just sold tokens and realized **0.12 SOL**" |
-| 💰 | **Received** | "The wallet received **1.5 SOL** from `4xKp...9nZe`" |
-| 📤 | **Sent** | "The wallet sent **0.01 SOL** to `7bRq...2mXf`" |
-| 🪙 | **Token** | "The wallet changed a token balance" |
-| ⚡ | **Program** | "The wallet executed an on-chain program interaction" |
+| `/watch` | Watch a fee recipient wallet |
+| `/alerts` | Configure alert types per chat |
+| `/monitor` | Start real-time token launch feed |
+| `/price` | Token price + bonding curve info |
+| `/fees` | Show fee tiers for a token |
+| `/quote` | Buy/sell quote estimate |
+| `/cto` | Creator Takeover lookup + stats |
 
 ---
 
-## 🛠️ All Commands
+## All Commands
 
 ### Global
 
 ```bash
 nemoclaw onboard                   # Full 9-step setup wizard
 nemoclaw solana                    # Solana status + available commands
-nemoclaw solana start              # One-shot: bridge + telegram-bot + relay
+nemoclaw solana start              # One-shot: bridge + bot + relay + registry
 nemoclaw wallet create             # Create encrypted Privy wallet
 nemoclaw wallet list               # List all wallets
-nemoclaw wallet status             # Wallet + Privy configuration
 nemoclaw list                      # List all sandboxes
-nemoclaw start / stop / status     # Manage auxiliary services
 nemoclaw deploy <instance>         # Deploy to Brev GPU VM
 ```
 
@@ -319,7 +379,7 @@ nemoclaw deploy <instance>         # Deploy to Brev GPU VM
 
 ```bash
 nemoclaw <name> connect            # Open sandbox shell
-nemoclaw <name> solana-stack       # Start bridge + bot + relay together
+nemoclaw <name> solana-stack       # Start bridge + bot + relay + registry
 nemoclaw <name> solana-agent       # Pump-Fun tracker bot
 nemoclaw <name> solana-bridge      # Natural-language Telegram narration
 nemoclaw <name> telegram-bot       # Telegram monitor + REST API
@@ -333,23 +393,9 @@ nemoclaw <name> policy-list        # Show applied presets
 nemoclaw <name> destroy            # Tear down sandbox + NIM
 ```
 
-### Inside the Sandbox
-
-```bash
-solana config set --url <rpc>      # Set RPC endpoint
-solana balance                     # Check SOL balance
-solana transfer <to> <amount>      # Send SOL
-solana-keygen new                  # Generate keypair
-solana deploy <program.so>         # Deploy a program
-solana-test-validator              # Local validator (Pump programs cloned)
-spl-token create-token             # Create SPL token
-spl-token mint <mint> <amount>     # Mint tokens
-helius-cli                         # Helius RPC tools
-```
-
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 ```
                                  ┌──────────────────────┐
@@ -372,15 +418,20 @@ helius-cli                         # Helius RPC tools
            │   └──────┬────────┘ └──────┬────────┘ └──────┬───────┘      │
            │          └────────┬────────┘                  │              │
            │                   ▼                           │              │
-           │          ┌─────────────────┐                  │              │
-           │          │  OpenClaw Agent  │◄─────────────────┘              │
-           │          │                 │                                  │
-           │          │  ├─ 8bit/DeepSolana  (Ollama — auto-pulled)       │
-           │          │  ├─ Privy Wallet Skill (sign / send / policy)     │
-           │          │  ├─ Pump-Fun SDK     (@nirholas/pump-sdk)         │
-           │          │  ├─ 43 DeFi Agent Personas                        │
-           │          │  └─ Solana CLI + helius-cli                        │
-           │          └─────────────────┘                                  │
+           │          ┌─────────────────┐  ┌──────────────┐│              │
+           │          │  OpenClaw Agent  │  │ Agent        ││              │
+           │          │                 │  │ Registry +   ││              │
+           │          │  ├─ DeepSolana  │  │ Heartbeat    │┘              │
+           │          │  ├─ Privy       │  └──────┬───────┘               │
+           │          │  ├─ Pump-Fun    │         │                       │
+           │          │  ├─ 43 Personas │         ▼                       │
+           │          │  └─ Solana CLI  │  ┌──────────────┐               │
+           │          └─────────────────┘  │ 8004 On-chain│               │
+           │                               │  Registry    │               │
+           │   ┌────────────────────────┐  └──────────────┘               │
+           │   │  Ops Dashboard :18789  │                                 │
+           │   │  Processes / Logs / SSE│                                 │
+           │   └────────────────────────┘                                 │
            └───────────────────────────────────────────────────────────────┘
                                            │
                      ┌─────────────────────▼─────────────────────┐
@@ -392,7 +443,7 @@ helius-cli                         # Helius RPC tools
 
 ---
 
-## 🛡️ Security
+## Security
 
 ### Protection Layers
 
@@ -408,93 +459,21 @@ helius-cli                         # Helius RPC tools
 
 ### Secret Protection
 
-- `.gitignore` blocks `.env`, `.npmrc`, `credentials.json`, `*.keypair`, `privy.json`, `helius.json`
+- `.gitignore` blocks `.env`, `.npmrc`, `credentials.json`, `*.keypair`, `*.keypair.json`, `privy.json`, `helius.json`
 - Pre-commit hook rejects commits containing `nvapi-*`, `sk-*`, `ghp_*`, `AKIA*`, bot tokens
 - API keys only injected at runtime from `~/.nemoclaw/` (mode 600)
 - Wallet private keys stay in Privy — zero local exposure
+- Agent registry keypairs stored in `~/.nemoclaw/agent-keypair.json` (mode 600, gitignored)
 
 ---
 
-## 🧠 Knowledge Workspace
-
-Inside the sandbox, the agent has **local access** to the full Pump-Fun corpus — no external fetching needed:
-
-```
-~/.openclaw/workspace/
-├── AGENTS.md                        # Agent identity + Solana capabilities
-├── skills/privy/SKILL.md            # Privy wallet skill (create/sign/send/policy)
-└── pumpfun/
-    ├── docs/                        # Protocol + SDK documentation
-    ├── agent-app/                   # Tracker bot (payments, claims, buybacks)
-    ├── telegram-bot/                # Telegram monitor runtime
-    ├── pumpkit/                     # PumpKit packages + 6 tutorials
-    ├── defi-agents/                 # 43 DeFi persona JSONs (18 locales each)
-    ├── tokenized-agents-skill/      # @pump-fun/agent-payments-sdk guide
-    ├── x402/                        # HTTP 402 Solana micropayment protocol
-    ├── swarm-bot/                   # Multi-bot orchestration + strategies
-    ├── websocket-server/            # Real-time launch relay
-    ├── agent-prompts/               # PumpKit build prompts
-    └── agent-tasks/                 # Scoped task specs + deliverables
-```
-
-### DeFi Agent Personas (43 total)
-
-<details>
-<summary>Click to see all 43 personas</summary>
-
-| Category | Personas |
-|---|---|
-| **Trading** | Airdrop Hunter · Alpha Leak Detector · Whale Watcher · MEV Protection Advisor · DEX Aggregator Optimizer |
-| **Risk & Analysis** | DeFi Risk Scoring Engine · Liquidation Risk Manager · Impermanent Loss Calculator · Smart Contract Auditor · Bridge Security Analyst |
-| **Yield** | DeFi Yield Farmer · Yield Dashboard Builder · Yield Sustainability Analyst · Staking Rewards Calculator · Liquidity Pool Analyzer |
-| **Portfolio** | Portfolio Rebalancing Advisor · Token Unlock Tracker · Wallet Security Advisor |
-| **Research** | Crypto News Analyst · Narrative Trend Analyst · Protocol Revenue Analyst · Protocol Treasury Analyst · Governance Proposal Analyst |
-| **Education** | DeFi Onboarding Mentor · APY vs APR Educator · Layer2 Comparison Guide · Gas Optimization Expert · Stablecoin Comparator |
-| **Tax & Compliance** | Crypto Tax Strategist · DeFi Insurance Advisor |
-| **Protocol-Specific** | Pump-Fun SDK Expert · NFT Liquidity Advisor · SPA Tokenomics Analyst · USDS Stablecoin Expert · Vespa Optimizer |
-| **Sperax Suite** | Sperax Bridge · Governance · Liquidity · Onboarding · Portfolio · Risk · Yield |
-| **DeFi Protocol** | DeFi Protocol Comparator |
-
-</details>
-
----
-
-## 🔧 Development
-
-```bash
-# Clone
-git clone https://github.com/x402agent/NemoClaw.git
-cd NemoClaw
-npm install
-
-# Build plugin
-npm run build:plugin
-
-# Run tests
-npm test
-
-# Audit tracked files and package metadata before a public push
-npm run public:audit
-
-# Check what gets published
-npm run pack:check
-
-# Full release check (build + test + pack)
-npm run release:check
-
-# Publish
-npm run publish:public
-```
-
----
-
-## 📚 Learn More
-
-### Bundled Stack
+## Bundled Stack
 
 | Component | Description |
 |---|---|
 | [Telegram Bot](./Pump-Fun/telegram-bot) | Launch monitoring, graduation alerts, whale detection, REST API |
+| [Dashboard](./Pump-Fun/dashboard) | Real-time ops dashboard with process management and log streaming |
+| [Agent Registry](./Pump-Fun/agent-registry) | 8004 on-chain registration, ATOM reputation, heartbeat liveness |
 | [PumpKit](./Pump-Fun/pumpkit) | Monorepo: monitor, tracker, claim, channel, web packages + 6 tutorials |
 | [Agent App](./Pump-Fun/agent-app) | Tracker bot, payment-gated invocation, invoice flow |
 | [DeFi Agents](./Pump-Fun/packages/defi-agents) | 43 persona JSONs with 18 locale translations each |
@@ -503,12 +482,6 @@ npm run publish:public
 | [Swarm Bot](./Pump-Fun/swarm-bot) | Multi-bot dashboard: sniper, momentum, market-maker strategies |
 | [WebSocket Server](./Pump-Fun/websocket-server) | Real-time Pump launch relay |
 | [Protocol Docs](./Pump-Fun/docs) | SDK reference, deployment guides, architecture |
-
-### Reference Docs
-
-- [CLI Commands Reference](./docs/reference/commands.md)
-- [Inference Profiles](./docs/reference/inference-profiles.md)
-- [Network Policies](./docs/reference/network-policies.md)
 
 ---
 

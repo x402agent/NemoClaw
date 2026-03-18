@@ -10,8 +10,8 @@ if ! command -v rg >/dev/null 2>&1; then
   exit 2
 fi
 
-if ! command -v node >/dev/null 2>&1; then
-  echo "[public-audit] node is required" >&2
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "[public-audit] python3 is required" >&2
   exit 2
 fi
 
@@ -45,16 +45,23 @@ if [ -n "$content_matches" ]; then
 fi
 
 echo "[public-audit] validating npm bin metadata..."
-if ! node - <<'EOF'
-const pkg = require("./package.json");
-const entries = typeof pkg.bin === "string" ? [["default", pkg.bin]] : Object.entries(pkg.bin || {});
-const invalid = entries.filter(([, target]) => String(target).startsWith("./"));
-if (invalid.length > 0) {
-  for (const [name, target] of invalid) {
-    console.error(`${name}: ${target}`);
-  }
-  process.exit(1);
-}
+if ! python3 - <<'EOF'
+import json
+import sys
+from pathlib import Path
+
+pkg = json.loads(Path("package.json").read_text())
+bin_field = pkg.get("bin", {})
+if isinstance(bin_field, str):
+    entries = [("default", bin_field)]
+else:
+    entries = list(bin_field.items())
+
+invalid = [(name, target) for name, target in entries if str(target).startswith("./")]
+if invalid:
+    for name, target in invalid:
+        print(f"{name}: {target}", file=sys.stderr)
+    sys.exit(1)
 EOF
 then
   echo "[public-audit] package.json has invalid bin entries for npm publish" >&2
