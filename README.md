@@ -28,6 +28,43 @@ nemoclaw solana start
 
 ---
 
+## 🍎 One Shot on Mac
+
+If you want the fastest local path on macOS, use this exact flow:
+
+```bash
+export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+npm install -g @mawdbotsonsolana/nemoclaw
+nemoclaw onboard
+nemoclaw solana start
+```
+
+Requirements:
+- Docker Desktop is open.
+- Ollama is optional. If present, NemoClaw auto-selects `8bit/DeepSolana`; otherwise you can use cloud inference.
+
+If the OpenShell gateway ever drops but your cluster still exists:
+
+```bash
+docker start openshell-cluster-nemoclaw
+```
+
+---
+
+## 📋 Copy-Paste `SKILL.md`
+
+Paste [`SKILL.md`](./SKILL.md) into Claude, Codex, Cursor, or any agent that supports repo skills/system instructions.
+
+That skill tells the agent to:
+- install and onboard NemoClaw on macOS
+- keep secrets out of git and out of logs
+- use Privy-managed wallets and runtime environment variables
+- recover the OpenShell gateway safely if it stops responding
+
+This is the developer path we want to feature publicly at `nemo.nanosolana.com`: one-shot local launch on Mac, plus a drop-in skill your AI agent can immediately use.
+
+---
+
 ## ⚡ What You Get
 
 ```
@@ -435,6 +472,9 @@ npm run build:plugin
 
 # Run tests
 npm test
+
+# Audit tracked files and package metadata before a public push
+npm run public:audit
 
 # Check what gets published
 npm run pack:check

@@ -20,13 +20,14 @@
     "deepsolana"
   ],
   "bin": {
-    "nemoclaw": "./bin/nemoclaw.js"
+    "nemoclaw": "bin/nemoclaw.js"
   },
   "scripts": {
     "test": "node --test test/*.test.js",
     "build:plugin": "npm --prefix nemoclaw run build",
+    "public:audit": "bash scripts/public-release-audit.sh",
     "pack:check": "npm pack --dry-run --cache /tmp/nemoclaw-npm-cache",
-    "release:check": "npm run build:plugin && npm test && npm run pack:check",
+    "release:check": "npm run build:plugin && npm test && npm run public:audit && npm run pack:check",
     "publish:public": "npm publish --access public",
     "prepublishOnly": "npm run build:plugin && npm test"
   },
@@ -35,6 +36,7 @@
   },
   "files": [
     "bin/",
+    "SKILL.md",
     "nemoclaw/dist/",
     "nemoclaw/openclaw.plugin.json",
     "nemoclaw/package.json",
@@ -68,7 +70,7 @@
     "type": "git",
     "url": "git+https://github.com/x402agent/NemoClaw.git"
   },
-  "homepage": "https://github.com/x402agent/NemoClaw#readme",
+  "homepage": "https://nemo.nanosolana.com",
   "bugs": {
     "url": "https://github.com/x402agent/NemoClaw/issues"
   }

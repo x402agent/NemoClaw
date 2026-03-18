@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NemoClaw — Autonomous Solana Trading Agent</title>
-  <meta name="description" content="NemoClaw turns an AI model into a fully autonomous Solana agent. Trade tokens, manage wallets, narrate on Telegram — all sandboxed. Powered by 8bit/DeepSolana.">
+  <title>NemoClaw — One-Shot Solana Agent for Mac and AI Agents</title>
+  <meta name="description" content="Launch NemoClaw on your Mac in one flow, then paste one SKILL.md into your AI agent. Trade tokens, manage wallets, narrate on Telegram — all sandboxed.">
   <meta name="keywords" content="NemoClaw, Solana, trading agent, AI, DeepSolana, Pump-Fun, Telegram bot, DeFi, autonomous agent, NVIDIA, OpenShell">
-  <meta property="og:title" content="NemoClaw — Autonomous Solana Trading Agent">
-  <meta property="og:description" content="Three commands. Zero exposed keys. Full autonomy. Powered by DeepSolana on Ollama.">
+  <meta property="og:title" content="NemoClaw — One-Shot Solana Agent for Mac and AI Agents">
+  <meta property="og:description" content="One-shot on macOS. Copy one SKILL.md into your AI agent. Zero exposed keys.">
   <meta property="og:type" content="website">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -260,6 +260,68 @@
     .feature-card h3 { font-size: 1.15rem; font-weight: 700; margin-bottom: .5rem; }
     .feature-card p { color: var(--text-secondary); font-size: .9rem; line-height: 1.5; }
 
+    /* ── Mac + Skill ── */
+    .launch-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 1.5rem;
+      align-items: stretch;
+    }
+    .launch-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.5rem;
+    }
+    .launch-card h3 {
+      font-size: 1.1rem;
+      margin-bottom: .75rem;
+    }
+    .launch-card p {
+      color: var(--text-secondary);
+      font-size: .92rem;
+      margin-bottom: 1rem;
+    }
+    .skill-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: .75rem;
+    }
+    .skill-code {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .8rem;
+      line-height: 1.7;
+      white-space: pre-wrap;
+      color: var(--text-primary);
+      overflow-x: auto;
+    }
+    .copy-btn {
+      background: rgba(153,69,255,.14);
+      color: var(--accent-solana);
+      border: 1px solid rgba(153,69,255,.35);
+      border-radius: 999px;
+      padding: .45rem .9rem;
+      font-size: .78rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all .2s ease;
+    }
+    .copy-btn:hover {
+      transform: translateY(-1px);
+      border-color: var(--accent-solana);
+    }
+    .launch-note {
+      color: var(--text-secondary);
+      font-size: .95rem;
+      margin-top: 1.25rem;
+    }
+
     /* ── Commands ── */
     .commands-section { background: var(--bg-secondary); }
     .cmd-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem; }
@@ -403,11 +465,11 @@
       <div class="hero-badge"><span class="dot"></span> Live on Solana Mainnet</div>
       <h1>
         <span class="gradient">NemoClaw</span><br>
-        Autonomous Solana Agent
+        One Shot on Mac.<br>One Skill for Your Agent.
       </h1>
       <p class="hero-sub">
-        Trade tokens, manage wallets, narrate on Telegram — all inside a hardened sandbox.
-        Powered by <strong>8bit/DeepSolana</strong> on Ollama.
+        Trade tokens, manage wallets, narrate on Telegram, and hand your AI agent a drop-in
+        <strong>SKILL.md</strong> so it can operate the stack safely. Powered by <strong>8bit/DeepSolana</strong> on Ollama.
       </p>
 
       <!-- Terminal Animation -->
@@ -421,6 +483,7 @@
         <div class="terminal-body">
           <div class="terminal-line"><span class="prompt">$</span> <span class="cmd">npm install -g @mawdbotsonsolana/nemoclaw</span></div>
           <div class="terminal-line"><span class="success">✓ installed v0.4.0</span></div>
+          <div class="terminal-line"><span class="prompt">$</span> <span class="cmd">export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"</span></div>
           <div class="terminal-line"><span class="prompt">$</span> <span class="cmd">nemoclaw onboard</span></div>
           <div class="terminal-line"><span class="comment"># Auto-detects Ollama → pulls 8bit/DeepSolana</span></div>
           <div class="terminal-line"><span class="success">✓ Gateway ready</span> · <span class="success">✓ Sandbox built</span> · <span class="success">✓ Wallet created</span></div>
@@ -453,6 +516,51 @@
           <div class="stat-label">Exposed Keys</div>
         </div>
       </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ MAC + SKILL ═══════════ -->
+  <section class="commands-section" id="mac-skill">
+    <div class="container">
+      <div class="section-label">Mac + SKILL.md</div>
+      <h2 class="section-title">Launch Locally, Then Hand It to Your AI Agent</h2>
+      <p class="section-desc">NemoClaw is designed for developers who want a one-shot local launch on macOS and a copy-paste skill their coding agent can use immediately.</p>
+      <div class="launch-grid">
+        <div class="launch-card">
+          <div class="skill-header">
+            <h3>One-Shot on macOS</h3>
+            <button class="copy-btn" data-copy-target="macCommandText">Copy</button>
+          </div>
+          <p>Open Docker Desktop, run this block, and NemoClaw handles the gateway, sandbox, model routing, wallet setup, and Solana stack.</p>
+          <div class="skill-code" id="macCommandText">export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+npm install -g @mawdbotsonsolana/nemoclaw
+nemoclaw onboard
+nemoclaw solana start</div>
+        </div>
+        <div class="launch-card">
+          <div class="skill-header">
+            <h3>Copy `SKILL.md` Into Your Agent</h3>
+            <button class="copy-btn" data-copy-target="skillText">Copy</button>
+          </div>
+          <p>Paste this into Claude, Codex, Cursor, or any agent that supports repo/system skills. It tells the agent how to launch NemoClaw and how to keep secrets out of git.</p>
+          <div class="skill-code" id="skillText"># NemoClaw Mac Launch Skill
+Use this skill when the user wants to run NemoClaw locally on macOS.
+
+- Never ask for or print raw private keys.
+- Never commit .env, ~/.nemoclaw, credentials.json, or *.keypair.json.
+- Prefer Privy-managed wallets and runtime env vars.
+
+One-shot flow:
+export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+npm install -g @mawdbotsonsolana/nemoclaw
+nemoclaw onboard
+nemoclaw solana start
+
+Recovery:
+docker start openshell-cluster-nemoclaw</div>
+        </div>
+      </div>
+      <p class="launch-note">This is the path to feature at <strong>nemo.nanosolana.com</strong>: one-shot local launch on Mac, zero raw keys in git, and a drop-in skill for developer agents.</p>
     </div>
   </section>
 
@@ -682,6 +790,26 @@ Ready to make some waves in Solana trading? 🦀</div>
     </div>
     <p>Built with 🦀 by the NemoClaw team · Powered by <a href="https://ollama.com">Ollama</a> + <a href="https://github.com/NVIDIA/OpenShell">OpenShell</a></p>
   </footer>
+
+  <script>
+    document.querySelectorAll('[data-copy-target]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const targetId = button.getAttribute('data-copy-target');
+        const target = targetId ? document.getElementById(targetId) : null;
+        if (!target) return;
+        const original = button.textContent;
+        try {
+          await navigator.clipboard.writeText(target.textContent.trim());
+          button.textContent = 'Copied';
+        } catch {
+          button.textContent = 'Copy failed';
+        }
+        setTimeout(() => {
+          button.textContent = original;
+        }, 1500);
+      });
+    });
+  </script>
 
 </body>
 </html>
