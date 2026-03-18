@@ -4,6 +4,7 @@
 const fs = require("fs");
 const path = require("path");
 const readline = require("readline");
+const { Writable } = require("stream");
 const { execSync } = require("child_process");
 
 const CREDS_DIR = path.join(process.env.HOME || "/tmp", ".nemoclaw");
@@ -31,9 +32,34 @@ function getCredential(key) {
   return creds[key] || null;
 }
 
-function prompt(question) {
+function prompt(question, opts = {}) {
   return new Promise((resolve) => {
-    const rl = readline.createInterface({ input: process.stdin, output: process.stderr });
+    const output = new Writable({
+      write(chunk, encoding, callback) {
+        if (!opts.silent || !output.muted) {
+          process.stderr.write(chunk, encoding);
+        }
+        callback();
+      },
+    });
+    output.muted = false;
+
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output,
+      terminal: true,
+    });
+
+    if (opts.silent) {
+      rl.question(question, (answer) => {
+        process.stderr.write("\n");
+        rl.close();
+        resolve(answer.trim());
+      });
+      output.muted = true;
+      return;
+    }
+
     rl.question(question, (answer) => {
       rl.close();
       resolve(answer.trim());
@@ -59,7 +85,7 @@ async function ensureApiKey() {
   console.log("  └─────────────────────────────────────────────────────────────────┘");
   console.log("");
 
-  key = await prompt("  NVIDIA API Key: ");
+  key = await prompt("  NVIDIA API Key: ", { silent: true });
 
   if (!key || !key.startsWith("nvapi-")) {
     console.error("  Invalid key. Must start with nvapi-");
@@ -106,7 +132,7 @@ async function ensureGithubToken() {
   console.log("  └──────────────────────────────────────────────────┘");
   console.log("");
 
-  token = await prompt("  GitHub Token: ");
+  token = await prompt("  GitHub Token: ", { silent: true });
 
   if (!token) {
     console.error("  Token required for deploy (repo is private).");

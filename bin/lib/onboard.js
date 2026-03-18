@@ -5,7 +5,7 @@
 
 const fs = require("fs");
 const path = require("path");
-const { ROOT, SCRIPTS, run, runCapture } = require("./runner");
+const { ROOT, SCRIPTS, run, runCapture, ensureDockerCliOnPath } = require("./runner");
 const { prompt, ensureApiKey, getCredential } = require("./credentials");
 const registry = require("./registry");
 const nim = require("./nim");
@@ -25,12 +25,31 @@ function step(n, total, msg) {
   console.log(`  ${"─".repeat(50)}`);
 }
 
-function isDockerRunning() {
+function getDockerStatus() {
+  const dockerBinary = ensureDockerCliOnPath();
+  if (!dockerBinary) {
+    return {
+      ok: false,
+      reason: "Docker CLI not found on PATH.",
+    };
+  }
+
   try {
     runCapture("docker info", { ignoreError: false });
-    return true;
-  } catch {
-    return false;
+    return { ok: true };
+  } catch (err) {
+    const detail = [
+      err && err.stderr ? String(err.stderr) : "",
+      err && err.stdout ? String(err.stdout) : "",
+      err && err.message ? String(err.message) : "",
+    ]
+      .map((line) => line.trim())
+      .find(Boolean);
+
+    return {
+      ok: false,
+      reason: detail || "docker info failed",
+    };
   }
 }
 
@@ -59,14 +78,58 @@ function copyIntoBuildContext(buildCtx, relativePath) {
   run(`cp -r "${source}" "${target}"`);
 }
 
+function waitForSandboxReady(sandboxName, attempts = 15, delaySeconds = 2) {
+  for (let i = 0; i < attempts; i++) {
+    const line = runCapture("openshell sandbox list 2>&1", { ignoreError: true })
+      .replace(/\x1b\[[0-9;]*m/g, "")
+      .split("\n")
+      .find((entry) => entry.includes(sandboxName));
+
+    if (line && /\bReady\b/i.test(line)) {
+      return { ok: true, line };
+    }
+
+    if (i < attempts - 1) {
+      require("child_process").spawnSync("sleep", [String(delaySeconds)]);
+    }
+  }
+
+  const detail = runCapture(`openshell sandbox get "${sandboxName}" 2>&1`, { ignoreError: true });
+  return { ok: false, detail };
+}
+
+async function promptSelection(question, optionsLength, defaultIndexOneBased) {
+  while (true) {
+    const answer = await prompt(question);
+    if (!answer) {
+      return defaultIndexOneBased - 1;
+    }
+
+    const parsed = parseInt(answer, 10);
+    if (Number.isInteger(parsed) && parsed >= 1 && parsed <= optionsLength) {
+      return parsed - 1;
+    }
+
+    console.log(`  Invalid choice: ${answer}. Enter a number from 1 to ${optionsLength}.`);
+  }
+}
+
 // ── Step 1: Preflight ────────────────────────────────────────────
 
 async function preflight() {
   step(1, TOTAL_STEPS, "Preflight checks");
 
   // Docker
-  if (!isDockerRunning()) {
-    console.error("  Docker is not running. Please start Docker and try again.");
+  const docker = getDockerStatus();
+  if (!docker.ok) {
+    console.error("  Docker is not running or not reachable.");
+    console.error(`  Detail: ${docker.reason}`);
+    if (process.env.DOCKER_HOST) {
+      console.error(`  DOCKER_HOST=${process.env.DOCKER_HOST}`);
+    }
+    if (process.platform === "darwin") {
+      console.error("  If Docker Desktop is already open, make sure your shell can see the Docker CLI.");
+    }
     process.exit(1);
   }
   console.log("  ✓ Docker is running");
@@ -213,6 +276,14 @@ async function createSandbox(gpu) {
   ].forEach((relativePath) => copyIntoBuildContext(buildCtx, relativePath));
   run(`rm -rf "${buildCtx}/nemoclaw/node_modules" "${buildCtx}/nemoclaw/src"`, { ignoreError: true });
 
+  const pluginDist = path.join(buildCtx, "nemoclaw", "dist");
+  if (!fs.existsSync(pluginDist) || fs.readdirSync(pluginDist).length === 0) {
+    run(`rm -rf "${buildCtx}"`, { ignoreError: true });
+    console.error("  nemoclaw/dist is missing or empty.");
+    console.error("  Run `npm run build:plugin` and retry onboarding.");
+    process.exit(1);
+  }
+
   // Create sandbox (use -- echo to avoid dropping into interactive shell)
   // Pass the base policy so sandbox starts in proxy mode (required for policy updates later)
   const basePolicyPath = path.join(ROOT, "nemoclaw-blueprint", "policies", "openclaw-sandbox.yaml");
@@ -235,10 +306,25 @@ async function createSandbox(gpu) {
   for (const [key, val] of Object.entries(solanaEnv)) {
     if (val) envArgs.push(`${key}=${val}`);
   }
-  run(`openshell sandbox create ${createArgs.join(" ")} -- env ${envArgs.join(" ")} nemoclaw-start 2>&1 | awk '/Sandbox allocated/{if(!seen){print;seen=1}next}1'`);
+  run(`set -o pipefail; openshell sandbox create ${createArgs.join(" ")} -- env ${envArgs.join(" ")} nemoclaw-start 2>&1 | awk '/Sandbox allocated/{if(!seen){print;seen=1}next}1'`);
+
+  const sandboxStatus = waitForSandboxReady(sandboxName);
+  if (!sandboxStatus.ok) {
+    run(`rm -rf "${buildCtx}"`, { ignoreError: true });
+    console.error("");
+    console.error(`  Sandbox '${sandboxName}' did not reach Ready state.`);
+    if (sandboxStatus.detail) {
+      console.error(sandboxStatus.detail);
+    }
+    process.exit(1);
+  }
 
   // Forward dashboard port separately
-  run(`openshell forward start --background 18789 "${sandboxName}"`, { ignoreError: true });
+  const forward = run(`openshell forward start --background 18789 "${sandboxName}"`, { ignoreError: true });
+  if (forward.status !== 0) {
+    console.log("  ⓘ Dashboard port forward on 18789 could not be started.");
+    console.log("    Another local process may already be using that port.");
+  }
 
   // Clean up build context
   run(`rm -rf "${buildCtx}"`, { ignoreError: true });
@@ -314,9 +400,8 @@ async function setupNim(sandboxName, gpu) {
     console.log("");
 
     const defaultIdx = options.findIndex((o) => o.key === "cloud") + 1;
-    const choice = await prompt(`  Choose [${defaultIdx}]: `);
-    const idx = parseInt(choice || String(defaultIdx), 10) - 1;
-    const selected = options[idx] || options[defaultIdx - 1];
+    const idx = await promptSelection(`  Choose [${defaultIdx}]: `, options.length, defaultIdx);
+    const selected = options[idx];
 
     if (selected.key === "nim") {
       // List models that fit GPU VRAM
@@ -331,9 +416,8 @@ async function setupNim(sandboxName, gpu) {
         });
         console.log("");
 
-        const modelChoice = await prompt(`  Choose model [1]: `);
-        const midx = parseInt(modelChoice || "1", 10) - 1;
-        const sel = models[midx] || models[0];
+        const midx = await promptSelection("  Choose model [1]: ", models.length, 1);
+        const sel = models[midx];
         model = sel.name;
 
         console.log(`  Pulling NIM image for ${model}...`);
@@ -480,9 +564,12 @@ async function setupSolana(sandboxName) {
 
   const defaultRpcChoice =
     (process.env.HELIUS_API_KEY || (existing && existing.heliusApiKey)) ? "3" : "1";
-  const rpcChoice = await prompt(`  Choose RPC [${defaultRpcChoice}]: `);
-  const rpcIdx = parseInt(rpcChoice || defaultRpcChoice, 10) - 1;
-  const selected = solana.DEFAULT_RPC_OPTIONS[rpcIdx] || solana.DEFAULT_RPC_OPTIONS[0];
+  const rpcIdx = await promptSelection(
+    `  Choose RPC [${defaultRpcChoice}]: `,
+    solana.DEFAULT_RPC_OPTIONS.length,
+    parseInt(defaultRpcChoice, 10)
+  );
+  const selected = solana.DEFAULT_RPC_OPTIONS[rpcIdx];
 
   let rpcUrl = selected.url;
   let heliusApiKey = null;
@@ -545,7 +632,7 @@ async function setupSolana(sandboxName) {
     if (!privyConfig) {
       console.log("  Get credentials from: https://dashboard.privy.io");
       const appId = await prompt("  Privy App ID: ");
-      const appSecret = await prompt("  Privy App Secret: ");
+      const appSecret = await prompt("  Privy App Secret: ", { silent: true });
 
       if (appId && appSecret) {
         privyConfig = {
@@ -575,6 +662,7 @@ async function setupSolana(sandboxName) {
           const policy = await solana.createPrivyPolicy({
             name: "NemoClaw Default",
             maxLamports: 100_000_000,
+            ownerPublicKey: wallet.address,
           });
           if (policy) {
             console.log(`  ✓ Policy created: ${policy.name || policy.id}`);

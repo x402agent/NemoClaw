@@ -11,14 +11,27 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         iproute2 bzip2 \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Solana CLI tools (validator, keygen, spl-token)
-RUN SOLANA_VERSION="v2.2.2" && \
-    sh -c "$(curl -sSfL https://release.anza.xyz/${SOLANA_VERSION}/install)" && \
-    ln -sf /root/.local/share/solana/install/active_release/bin/solana /usr/local/bin/solana && \
-    ln -sf /root/.local/share/solana/install/active_release/bin/solana-test-validator /usr/local/bin/solana-test-validator && \
-    ln -sf /root/.local/share/solana/install/active_release/bin/solana-keygen /usr/local/bin/solana-keygen && \
-    ln -sf /root/.local/share/solana/install/active_release/bin/spl-token /usr/local/bin/spl-token || \
-    echo 'WARN: Solana CLI install skipped (may not be available for this arch)'
+# Install Solana CLI tools via an explicit Agave release.
+# Anza publishes installers for x86_64 Linux, x86_64/aarch64 macOS, and Windows,
+# but not for Linux aarch64. Apple Silicon hosts building a Linux/arm64 sandbox
+# must therefore skip the bundled CLI install instead of hard-failing the image.
+ARG SOLANA_VERSION=v3.1.9
+RUN set -eux; \
+    arch="$(dpkg --print-architecture)"; \
+    if [ "${arch}" = "arm64" ]; then \
+      echo 'WARN: Agave does not publish Linux arm64 CLI installers; skipping Solana CLI in this sandbox build'; \
+    else \
+      sh -c "$(curl -sSfL https://release.anza.xyz/${SOLANA_VERSION}/install)"; \
+      SOLANA_BIN_DIR="/root/.local/share/solana/install/active_release/bin"; \
+      ln -sf "${SOLANA_BIN_DIR}/solana" /usr/local/bin/solana; \
+      ln -sf "${SOLANA_BIN_DIR}/solana-test-validator" /usr/local/bin/solana-test-validator; \
+      ln -sf "${SOLANA_BIN_DIR}/solana-keygen" /usr/local/bin/solana-keygen; \
+      if [ -x "${SOLANA_BIN_DIR}/spl-token" ]; then \
+        ln -sf "${SOLANA_BIN_DIR}/spl-token" /usr/local/bin/spl-token; \
+      else \
+        echo 'WARN: spl-token is not bundled in this Agave release'; \
+      fi; \
+    fi
 
 # Create sandbox user (matches OpenShell convention)
 RUN groupadd -r sandbox && useradd -r -g sandbox -d /sandbox -s /bin/bash sandbox \

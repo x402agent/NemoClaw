@@ -258,22 +258,32 @@ async function createPrivyPolicy(opts = {}) {
   const authHeader = Buffer.from(`${config.appId}:${config.appSecret}`).toString("base64");
 
   const policy = {
+    version: "1.0",
     name: opts.name || "NemoClaw Agent Policy",
-    method: opts.method || "signAndSendTransaction",
-    conditions: opts.conditions || [
+    chain_type: opts.chainType || "solana",
+    rules: [
       {
-        field_source: "solana_transaction",
-        field: "lamports",
-        operator: "lte",
-        value: String(opts.maxLamports || 100_000_000), // 0.1 SOL default
+        name: opts.ruleName || "Restrict SOL transfer size",
+        method: opts.method || "signAndSendTransaction",
+        conditions: opts.conditions || [
+          {
+            field_source: "solana_system_program_instruction",
+            field: "Transfer.lamports",
+            operator: "lte",
+            value: String(opts.maxLamports || 100_000_000), // 0.1 SOL default
+          },
+        ],
+        action: "ALLOW",
       },
     ],
-    action: "ALLOW",
   };
+  if (opts.ownerPublicKey) {
+    policy.owner = { public_key: opts.ownerPublicKey };
+  }
 
   try {
     const result = execSync(
-      `curl -sf -X POST "https://auth.privy.io/api/v1/policies" ` +
+      `curl -sf -X POST "https://api.privy.io/v1/policies" ` +
       `-H "Content-Type: application/json" ` +
       `-H "Authorization: Basic ${authHeader}" ` +
       `-H "privy-app-id: ${config.appId}" ` +

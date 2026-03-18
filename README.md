@@ -81,7 +81,7 @@ The wizard walks through **9 steps**:
 |:---:|---|
 | 1 | **Preflight** — Docker, OpenShell, GPU detection |
 | 2 | **Gateway** — Start the OpenShell gateway |
-| 3 | **Sandbox** — Build Docker image (Solana CLI v2.2.2, Pump-Fun SDK, 43 DeFi personas) |
+| 3 | **Sandbox** — Build Docker image (Solana CLI v3.1.9 via Agave installer, Pump-Fun SDK, 43 DeFi personas) |
 | 4 | **Inference** — Auto-detects Ollama → pulls `8bit/DeepSolana`. Or pick NVIDIA Cloud / vLLM |
 | 5 | **Provider** — Configure the inference endpoint |
 | 6 | **OpenClaw** — Install the agent framework in the sandbox |
@@ -181,11 +181,13 @@ openshell sandbox create --name deep-solana --from openclaw
 ### What's Inside
 
 The sandbox container includes:
-- **Solana CLI v2.2.2** — Full Solana toolchain
+- **Solana CLI v3.1.9 via Agave installer** — Full Solana toolchain
 - **helius-cli** — Helius RPC direct access
 - **OpenClaw 2026.3.x** — Agent framework
 - **Python 3.13** — For custom scripts
 - **Node.js 20+** — For bot runtimes
+
+On Apple Silicon hosts, OpenShell builds the sandbox as Linux `arm64`. Agave does not currently publish Linux `arm64` CLI installers, so `solana`, `solana-test-validator`, and `spl-token` may be skipped in that sandbox image while the rest of NemoClaw still works.
 - **43 DeFi persona JSONs** — Agent personalities
 - **Pump-Fun SDK** — Token operations
 - **Privy wallet skill** — Encrypted key management
