@@ -46,7 +46,7 @@ require_env TELEGRAM_BOT_TOKEN
 # OpenShell sandboxes may inherit host proxy variables that break direct
 # Telegram API access and WebSocket setup inside the sandbox.
 unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy grpc_proxy GRPC_PROXY
-export NODE_USE_ENV_PROXY=0
+unset NODE_USE_ENV_PROXY
 
 export SOLANA_RPC_URL="${SOLANA_RPC_URL:-https://rpc.solanatracker.io/public}"
 export SOLANA_WS_URL="${SOLANA_WS_URL:-$(derive_ws_url)}"

@@ -317,6 +317,48 @@ export interface WatchEntry {
 }
 
 // ============================================================================
+// Conversation Memory
+// ============================================================================
+
+export type ConversationRole = 'user' | 'assistant';
+
+export type ConversationIntent =
+    | 'start'
+    | 'help'
+    | 'watch'
+    | 'unwatch'
+    | 'list'
+    | 'status'
+    | 'cto'
+    | 'alerts'
+    | 'monitor'
+    | 'stopmonitor'
+    | 'price'
+    | 'fees'
+    | 'quote'
+    | 'memory'
+    | 'chat';
+
+export interface ConversationTurn {
+    role: ConversationRole;
+    text: string;
+    timestamp: number;
+}
+
+export interface ConversationMemory {
+    chatId: number;
+    userId: number;
+    updatedAt: number;
+    recentMessages: ConversationTurn[];
+    lastIntent?: ConversationIntent;
+    lastTokenMint?: string;
+    lastWallet?: string;
+    lastTopic?: string;
+    githubOnlyFilter?: boolean;
+    monitorActive?: boolean;
+}
+
+// ============================================================================
 // Bot Config
 // ============================================================================
 
@@ -349,6 +391,12 @@ export interface BotConfig {
     whaleThresholdSol: number;
     /** Enable creator fee distribution alerts (default: false) */
     enableFeeDistributionAlerts: boolean;
+    /** Enable natural-language routing for non-command text messages */
+    enableNaturalLanguage: boolean;
+    /** Persist per-chat conversation state and remembered entities */
+    enableConversationMemory: boolean;
+    /** Max recent turns to retain per chat */
+    conversationMemoryLimit: number;
 }
 
 // ============================================================================
@@ -557,4 +605,3 @@ export interface PumpEventMonitorState {
     /** Total errors encountered */
     errorsEncountered: number;
 }
-

@@ -49,12 +49,12 @@ function createSandboxSshConfig(sandboxName) {
   return configPath;
 }
 
-function runSandboxScript(sandboxName, envValues, scriptName) {
+function runSandboxCommand(sandboxName, envValues, command) {
   const exports = Object.entries(envValues)
     .filter(([, value]) => value !== undefined && value !== null && value !== "")
     .map(([key, value]) => `${key}=${shellQuote(value)}`)
     .join(" ");
-  const innerCmd = exports ? `export ${exports} && ${scriptName}` : scriptName;
+  const innerCmd = exports ? `export ${exports} && ${command}` : command;
   const sshConfigPath = createSandboxSshConfig(sandboxName);
   try {
     const remoteCmd = `bash -lc ${shellQuote(innerCmd)}`;
@@ -62,6 +62,10 @@ function runSandboxScript(sandboxName, envValues, scriptName) {
   } finally {
     fs.unlinkSync(sshConfigPath);
   }
+}
+
+function runSandboxScript(sandboxName, envValues, scriptName) {
+  runSandboxCommand(sandboxName, envValues, scriptName);
 }
 
 function validateSandboxEnv(label, envValues, requiredKeys, optionalHint) {
@@ -421,7 +425,21 @@ function sandboxTelegramBot(sandboxName) {
     "SOLANA_RPC_URL, SOLANA_WS_URL, ALLOWED_USER_IDS, ENABLE_API, ENABLE_LAUNCH_MONITOR, ENABLE_GRADUATION_ALERTS, ENABLE_TRADE_ALERTS, ENABLE_FEE_DISTRIBUTION_ALERTS, WHALE_THRESHOLD_SOL, POLL_INTERVAL_SECONDS, TELEGRAM_API_PORT."
   );
 
-  runSandboxScript(sandboxName, envValues, "nemoclaw-telegram-bot");
+  const stagedApp = "/sandbox/pumpfun-telegram-bot-live";
+  const localTelegramBotDir = path.join(ROOT, "Pump-Fun", "telegram-bot");
+  run(`openshell sandbox upload "${sandboxName}" "${localTelegramBotDir}" "${stagedApp}"`, {
+    ignoreError: false,
+  });
+  runSandboxCommand(
+    sandboxName,
+    envValues,
+    [
+      "unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy grpc_proxy GRPC_PROXY NODE_USE_ENV_PROXY",
+      `ln -sfn /opt/pump-fun/telegram-bot/node_modules "${stagedApp}/node_modules"`,
+      `cd "${stagedApp}"`,
+      "exec npx tsx src/index.ts",
+    ].join(" && ")
+  );
 }
 
 function sandboxSwarmBot(sandboxName) {

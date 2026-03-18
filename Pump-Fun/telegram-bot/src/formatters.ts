@@ -4,7 +4,7 @@
  * Rich HTML message formatting for Telegram notifications.
  */
 
-import type { CreatorChangeEvent, FeeClaimEvent, FeeDistributionEvent, GraduationEvent, MonitorState, PumpEventMonitorState, TokenLaunchEvent, TokenLaunchMonitorState, TradeAlertEvent, WatchEntry } from './types.js';
+import type { ConversationMemory, CreatorChangeEvent, FeeClaimEvent, FeeDistributionEvent, GraduationEvent, MonitorState, PumpEventMonitorState, TokenLaunchEvent, TokenLaunchMonitorState, TradeAlertEvent, WatchEntry } from './types.js';
 import type { FeeTierInfo, PumpTokenInfo, QuoteResult } from './pump-client.js';
 import { formatSol, formatTokenAmount, fetchTokenInfo } from './pump-client.js';
 
@@ -206,6 +206,8 @@ export function formatHelp(): string {
     return (
         `🤖 <b>PumpFun Monitor</b>\n\n` +
         `Real-time PumpFun intelligence on Solana.\n\n` +
+        `💬 <b>Natural language</b>\n` +
+        `You can also just type things like “price &lt;mint&gt;”, “watch &lt;wallet&gt;”, “buy quote for &lt;mint&gt; 1 sol”, or “what do you remember?”.\n\n` +
         `📊 <b>Token Analytics:</b>\n` +
         `/price <code>&lt;mint&gt;</code> — Token price, market cap &amp; curve status\n` +
         `/curve <code>&lt;mint&gt;</code> — Alias for /price\n` +
@@ -248,6 +250,7 @@ export function formatWelcome(name: string): string {
     return (
         `👋 <b>Welcome, ${escapeHtml(name)}!</b>\n\n` +
         `I'm your real-time PumpFun intelligence bot on Solana.\n\n` +
+        `🧠 I can remember recent conversation context for this chat, so follow-ups like “what about the fees?” can reuse the last token we discussed.\n\n` +
         `📊 <b>Token Analytics</b>\n` +
         `/price — Token price &amp; bonding curve\n` +
         `/balance — Check token balance\n` +
@@ -263,6 +266,61 @@ export function formatWelcome(name: string): string {
         `/alerts — Configure notifications\n\n` +
         `Get started: <code>/watch &lt;wallet_address&gt;</code>\n` +
         `Full command list: /help`
+    );
+}
+
+export function formatMemorySummary(memory?: ConversationMemory): string {
+    if (!memory) {
+        return (
+            `🧠 <b>Memory</b>\n\n` +
+            `I don't have any saved context for this chat yet.\n\n` +
+            `Talk to me naturally about a token, wallet, watch list, or quote and I'll remember the recent context.`
+        );
+    }
+
+    const parts: string[] = [
+        '🧠 <b>Memory</b>',
+        '',
+        `🕒 <b>Last updated:</b> ${new Date(memory.updatedAt).toISOString().replace('T', ' ').slice(0, 19)} UTC`,
+        `🎯 <b>Last intent:</b> ${escapeHtml(memory.lastIntent || 'unknown')}`,
+    ];
+
+    if (memory.lastTokenMint) {
+        parts.push(`🪙 <b>Last token:</b> <code>${memory.lastTokenMint}</code>`);
+    }
+    if (memory.lastWallet) {
+        parts.push(`👛 <b>Last wallet:</b> <code>${memory.lastWallet}</code>`);
+    }
+    if (memory.lastTopic) {
+        parts.push(`📝 <b>Last topic:</b> ${escapeHtml(memory.lastTopic)}`);
+    }
+    if (memory.recentMessages.length > 0) {
+        parts.push('', '<b>Recent turns:</b>');
+        for (const turn of memory.recentMessages.slice(-4)) {
+            const label = turn.role === 'user' ? 'You' : 'Bot';
+            parts.push(`• <b>${label}:</b> ${escapeHtml(turn.text.slice(0, 180))}`);
+        }
+    }
+
+    return parts.join('\n');
+}
+
+export function formatNaturalLanguageHint(memory?: ConversationMemory): string {
+    const remembered = memory?.lastTokenMint
+        ? `\n\nI still remember token <code>${memory.lastTokenMint}</code> if you want a follow-up price, fee, or quote lookup.`
+        : memory?.lastWallet
+            ? `\n\nI still remember wallet <code>${memory.lastWallet}</code> if you want to watch it or inspect related activity.`
+            : '';
+
+    return (
+        `💬 <b>Natural-language mode</b>\n\n` +
+        `Try messages like:\n` +
+        `• <code>price &lt;mint&gt;</code>\n` +
+        `• <code>watch &lt;wallet&gt; my alpha wallet</code>\n` +
+        `• <code>buy quote for &lt;mint&gt; 1.5 sol</code>\n` +
+        `• <code>fees for this token</code>\n` +
+        `• <code>what do you remember?</code>` +
+        remembered
     );
 }
 
@@ -778,4 +836,3 @@ function formatDuration(ms: number): string {
     if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
     return `${seconds}s`;
 }
-

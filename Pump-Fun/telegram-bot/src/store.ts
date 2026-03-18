@@ -9,15 +9,17 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import { log } from './logger.js';
-import type { WatchEntry } from './types.js';
+import type { ConversationMemory, ConversationRole, WatchEntry } from './types.js';
 
 const DATA_FILE = resolve(process.cwd(), 'data', 'watches.json');
+const CONVERSATION_FILE = resolve(process.cwd(), 'data', 'conversations.json');
 
 // ============================================================================
 // In-memory store
 // ============================================================================
 
 const watches = new Map<string, WatchEntry>();
+const conversations = new Map<number, ConversationMemory>();
 
 // ============================================================================
 // Persistence
@@ -52,6 +54,29 @@ export function saveWatches(): void {
         writeFileSync(DATA_FILE, JSON.stringify(entries, null, 2), 'utf-8');
     } catch (err) {
         log.error('Failed to save watches:', err);
+    }
+}
+
+export function loadConversationMemories(): void {
+    try {
+        const raw = readFileSync(CONVERSATION_FILE, 'utf-8');
+        const entries: ConversationMemory[] = JSON.parse(raw);
+        for (const entry of entries) {
+            conversations.set(entry.chatId, entry);
+        }
+        log.info(`Loaded ${entries.length} conversation memories from disk`);
+    } catch {
+        log.info('No existing conversation memory found — starting fresh');
+    }
+}
+
+export function saveConversationMemories(): void {
+    try {
+        ensureDataDir();
+        const entries = Array.from(conversations.values());
+        writeFileSync(CONVERSATION_FILE, JSON.stringify(entries, null, 2), 'utf-8');
+    } catch (err) {
+        log.error('Failed to save conversation memories:', err);
     }
 }
 
@@ -142,3 +167,64 @@ export function findMatchingWatches(claimerWallet: string): WatchEntry[] {
     );
 }
 
+function normalizeConversationText(text: string): string {
+    return text.replace(/\s+/g, ' ').trim().slice(0, 1200);
+}
+
+export function getConversationMemory(chatId: number): ConversationMemory | undefined {
+    return conversations.get(chatId);
+}
+
+export function appendConversationMessage(
+    chatId: number,
+    userId: number,
+    role: ConversationRole,
+    text: string,
+    limit = 24,
+): ConversationMemory {
+    const normalized = normalizeConversationText(text);
+    const existing = conversations.get(chatId);
+    const memory: ConversationMemory = existing ?? {
+        chatId,
+        recentMessages: [],
+        updatedAt: Date.now(),
+        userId,
+    };
+
+    memory.userId = userId || memory.userId;
+    memory.updatedAt = Date.now();
+    memory.recentMessages.push({
+        role,
+        text: normalized,
+        timestamp: Date.now(),
+    });
+    if (memory.recentMessages.length > limit) {
+        memory.recentMessages = memory.recentMessages.slice(-limit);
+    }
+    conversations.set(chatId, memory);
+    saveConversationMemories();
+    return memory;
+}
+
+export function updateConversationMemory(
+    chatId: number,
+    updates: Partial<Omit<ConversationMemory, 'chatId' | 'recentMessages'>>,
+): ConversationMemory {
+    const existing = conversations.get(chatId) ?? {
+        chatId,
+        recentMessages: [],
+        updatedAt: Date.now(),
+        userId: 0,
+    };
+
+    const merged: ConversationMemory = {
+        ...existing,
+        ...updates,
+        chatId,
+        recentMessages: existing.recentMessages,
+        updatedAt: Date.now(),
+    };
+    conversations.set(chatId, merged);
+    saveConversationMemories();
+    return merged;
+}

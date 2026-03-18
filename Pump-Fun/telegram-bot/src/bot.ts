@@ -14,8 +14,10 @@ import {
     formatCreatorChangeNotification,
     formatFeeTiers,
     formatHelp,
+    formatMemorySummary,
     formatMonitorActivated,
     formatMonitorDeactivated,
+    formatNaturalLanguageHint,
     formatQuote,
     formatStatus,
     formatTokenPrice,
@@ -44,12 +46,15 @@ import {
 } from './pump-client.js';
 import {
     addWatch,
+    appendConversationMessage,
     findMatchingWatches,
+    getConversationMemory,
     getWatchesForChat,
     removeWatch,
     removeWatchByWallet,
+    updateConversationMemory,
 } from './store.js';
-import type { BotConfig, CreatorChangeEvent, FeeClaimEvent } from './types.js';
+import type { BotConfig, ConversationIntent, CreatorChangeEvent, FeeClaimEvent } from './types.js';
 
 // ============================================================================
 // Token Launch Monitor type (optional — may not exist yet)
@@ -76,6 +81,33 @@ export function createBot(
     eventMonitor?: PumpEventMonitorLike,
 ): Bot {
     const bot = new Bot(config.telegramToken);
+
+    bot.use(async (ctx, next) => {
+        const chatId = ctx.chat?.id;
+        const userId = ctx.from?.id;
+        if (chatId && userId && ctx.message?.text && config.enableConversationMemory) {
+            appendConversationMessage(chatId, userId, 'user', ctx.message.text, config.conversationMemoryLimit);
+        }
+
+        const originalReply = ctx.reply.bind(ctx);
+        (ctx as Context & {
+            reply: typeof ctx.reply;
+        }).reply = (async (...args: Parameters<typeof originalReply>) => {
+            const [text] = args;
+            if (chatId && userId && config.enableConversationMemory) {
+                appendConversationMessage(
+                    chatId,
+                    userId,
+                    'assistant',
+                    typeof text === 'string' ? text : String(text),
+                    config.conversationMemoryLimit,
+                );
+            }
+            return originalReply(...args);
+        }) as typeof ctx.reply;
+
+        await next();
+    });
 
     // ── Auth middleware (optional) ────────────────────────────────────────
     if (config.allowedUserIds.length > 0) {
@@ -112,13 +144,22 @@ export function createBot(
 
     // ── Fallback ─────────────────────────────────────────────────────────
     bot.on('message:text', async (ctx) => {
-        // In groups, only respond to commands (already handled above)
-        // In DMs, show a hint
+        const text = ctx.message?.text || '';
+        if (text.startsWith('/')) {
+            return;
+        }
+
+        if (config.enableNaturalLanguage) {
+            const handled = await handleNaturalLanguage(ctx, monitor);
+            if (handled) {
+                return;
+            }
+        }
+
         if (ctx.chat.type === 'private') {
-            await ctx.reply(
-                '💡 Use /help to see available commands.',
-                { parse_mode: 'HTML' },
-            );
+            await ctx.reply(formatNaturalLanguageHint(getConversationMemory(ctx.chat.id)), {
+                parse_mode: 'HTML',
+            });
         }
     });
 
@@ -131,6 +172,10 @@ export function createBot(
 
 async function handleStart(ctx: Context): Promise<void> {
     const name = ctx.from?.first_name || ctx.from?.username || 'there';
+    rememberConversationContext(ctx, {
+        lastIntent: 'start',
+        lastTopic: 'welcome',
+    });
     await ctx.reply(formatWelcome(name), { parse_mode: 'HTML' });
 }
 
@@ -139,6 +184,10 @@ async function handleStart(ctx: Context): Promise<void> {
 // ============================================================================
 
 async function handleHelpCmd(ctx: Context): Promise<void> {
+    rememberConversationContext(ctx, {
+        lastIntent: 'help',
+        lastTopic: 'help',
+    });
     await ctx.reply(formatHelp(), { parse_mode: 'HTML' });
 }
 
@@ -181,6 +230,11 @@ async function handleWatch(ctx: Context): Promise<void> {
     }
 
     const watch = addWatch(ctx.chat!.id, ctx.from!.id, wallet, label);
+    rememberConversationContext(ctx, {
+        lastIntent: 'watch',
+        lastTopic: label ? `watch ${label}` : 'watch wallet',
+        lastWallet: wallet,
+    });
     const shortWallet = `${wallet.slice(0, 6)}...${wallet.slice(-4)}`;
     const labelStr = label ? ` (<b>${escapeHtml(label)}</b>)` : '';
 
@@ -221,6 +275,11 @@ async function handleUnwatch(ctx: Context): Promise<void> {
         if (num <= watches.length) {
             const target = watches[num - 1];
             removeWatch(target.id, chatId);
+            rememberConversationContext(ctx, {
+                lastIntent: 'unwatch',
+                lastTopic: 'remove watch',
+                lastWallet: target.recipientWallet,
+            });
             const shortW = `${target.recipientWallet.slice(0, 6)}...${target.recipientWallet.slice(-4)}`;
             await ctx.reply(`✅ Removed watch for <code>${shortW}</code>`, {
                 parse_mode: 'HTML',
@@ -231,6 +290,11 @@ async function handleUnwatch(ctx: Context): Promise<void> {
 
     // Try by wallet address
     if (removeWatchByWallet(input, chatId)) {
+        rememberConversationContext(ctx, {
+            lastIntent: 'unwatch',
+            lastTopic: 'remove watch',
+            lastWallet: input,
+        });
         const shortW = `${input.slice(0, 6)}...${input.slice(-4)}`;
         await ctx.reply(`✅ Removed watch for <code>${shortW}</code>`, {
             parse_mode: 'HTML',
@@ -297,6 +361,11 @@ async function handleCto(ctx: Context, monitor: PumpFunMonitor): Promise<void> {
     }
 
     const input = parts[0];
+    rememberConversationContext(ctx, {
+        lastIntent: 'cto',
+        lastTopic: 'creator takeover lookup',
+        lastWallet: input,
+    });
 
     // Validate: must be a Solana base58 address (32-44 chars)
     if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(input)) {
@@ -429,6 +498,10 @@ async function handleAlerts(ctx: Context): Promise<void> {
             `<b>All on/off:</b> <code>/alerts all on</code>`,
             { parse_mode: 'HTML' },
         );
+        rememberConversationContext(ctx, {
+            lastIntent: 'alerts',
+            lastTopic: 'alert preferences',
+        });
         return;
     }
 
@@ -452,6 +525,10 @@ async function handleAlerts(ctx: Context): Promise<void> {
             `${value ? '✅' : '❌'} All alert types turned <b>${action}</b>.`,
             { parse_mode: 'HTML' },
         );
+        rememberConversationContext(ctx, {
+            lastIntent: 'alerts',
+            lastTopic: `alerts all ${action}`,
+        });
         return;
     }
 
@@ -481,6 +558,10 @@ async function handleAlerts(ctx: Context): Promise<void> {
         `${value ? '✅' : '❌'} <b>${label}</b> alerts turned <b>${action}</b>.`,
         { parse_mode: 'HTML' },
     );
+    rememberConversationContext(ctx, {
+        lastIntent: 'alerts',
+        lastTopic: `${label} alerts ${action}`,
+    });
 }
 
 // ============================================================================
@@ -489,6 +570,10 @@ async function handleAlerts(ctx: Context): Promise<void> {
 
 async function handleList(ctx: Context): Promise<void> {
     const watches = getWatchesForChat(ctx.chat!.id);
+    rememberConversationContext(ctx, {
+        lastIntent: 'list',
+        lastTopic: 'watch list',
+    });
     await ctx.reply(formatWatchList(watches), { parse_mode: 'HTML' });
 }
 
@@ -511,6 +596,11 @@ async function handleStatus(
         formatStatus(state, watches.length, launchState, activeMonitors, eventState),
         { parse_mode: 'HTML' },
     );
+    rememberConversationContext(ctx, {
+        lastIntent: 'status',
+        lastTopic: 'bot status',
+        monitorActive: activeMonitors > 0,
+    });
 }
 
 // ============================================================================
@@ -527,6 +617,12 @@ async function handleMonitor(ctx: Context): Promise<void> {
 
     activateMonitor(ctx.chat!.id, ctx.from!.id, githubOnly);
     const activeCount = getActiveMonitorCount();
+    rememberConversationContext(ctx, {
+        githubOnlyFilter: githubOnly,
+        lastIntent: 'monitor',
+        lastTopic: githubOnly ? 'github-only launch monitor' : 'launch monitor',
+        monitorActive: true,
+    });
 
     if (wasActive) {
         log.info(
@@ -563,6 +659,11 @@ async function handleStopMonitor(ctx: Context): Promise<void> {
 
     deactivateMonitor(ctx.chat!.id);
     log.info('Monitor stopped by user for chat %d', ctx.chat!.id);
+    rememberConversationContext(ctx, {
+        lastIntent: 'stopmonitor',
+        lastTopic: 'stop launch monitor',
+        monitorActive: false,
+    });
     await ctx.reply(formatMonitorDeactivated(), { parse_mode: 'HTML' });
 }
 
@@ -613,6 +714,11 @@ async function handlePrice(ctx: Context): Promise<void> {
         parse_mode: 'HTML',
         link_preview_options: { is_disabled: true },
     });
+    rememberConversationContext(ctx, {
+        lastIntent: 'price',
+        lastTokenMint: token.mint,
+        lastTopic: `price for ${token.symbol}`,
+    });
 }
 
 // ============================================================================
@@ -656,6 +762,11 @@ async function handleFees(ctx: Context): Promise<void> {
     await ctx.reply(formatFeeTiers(token, tiers), {
         parse_mode: 'HTML',
         link_preview_options: { is_disabled: true },
+    });
+    rememberConversationContext(ctx, {
+        lastIntent: 'fees',
+        lastTokenMint: token.mint,
+        lastTopic: `fees for ${token.symbol}`,
     });
 }
 
@@ -734,6 +845,11 @@ async function handleQuote(ctx: Context): Promise<void> {
             parse_mode: 'HTML',
             link_preview_options: { is_disabled: true },
         });
+        rememberConversationContext(ctx, {
+            lastIntent: 'quote',
+            lastTokenMint: token.mint,
+            lastTopic: `buy quote for ${token.symbol}`,
+        });
     } else {
         const rawTokens = parseTokenAmount(amountStr);
         if (rawTokens === null || rawTokens <= 0n) {
@@ -745,6 +861,247 @@ async function handleQuote(ctx: Context): Promise<void> {
             parse_mode: 'HTML',
             link_preview_options: { is_disabled: true },
         });
+        rememberConversationContext(ctx, {
+            lastIntent: 'quote',
+            lastTokenMint: token.mint,
+            lastTopic: `sell quote for ${token.symbol}`,
+        });
+    }
+}
+
+type NaturalLanguageIntent =
+    | { type: 'help' | 'status' | 'list' | 'stopmonitor' | 'memory' | 'greeting' }
+    | { type: 'monitor'; githubOnly: boolean }
+    | { type: 'watch'; wallet?: string; label?: string }
+    | { type: 'unwatch'; target?: string }
+    | { type: 'price' | 'fees' | 'cto'; mintOrWallet?: string }
+    | { type: 'alerts'; alertType?: string; action?: 'on' | 'off' }
+    | { type: 'quote'; side: 'buy' | 'sell'; mint?: string; amount?: string }
+    | { type: 'unknown' };
+
+function extractBase58(text: string): string | undefined {
+    return text.match(/\b[1-9A-HJ-NP-Za-km-z]{32,44}\b/)?.[0];
+}
+
+function extractQuoteAmount(text: string): string | undefined {
+    return text.match(/\b\d+(?:\.\d+)?(?:[kKmM])?\b/)?.[0];
+}
+
+function parseNaturalLanguageIntent(
+    text: string,
+    chatId: number,
+): NaturalLanguageIntent {
+    const lower = text.toLowerCase().trim();
+    const memory = getConversationMemory(chatId);
+    const rememberedMint = memory?.lastTokenMint;
+    const rememberedWallet = memory?.lastWallet;
+    const address = extractBase58(text);
+
+    if (/(what do you remember|remember this chat|memory|what did we talk about)/.test(lower)) {
+        return { type: 'memory' };
+    }
+    if (/^(hi|hello|hey|gm|good morning|yo)\b/.test(lower)) {
+        return { type: 'greeting' };
+    }
+    if (/(help|what can you do|commands)/.test(lower)) {
+        return { type: 'help' };
+    }
+    if (/(status|how are things|what'?s running|bot status)/.test(lower)) {
+        return { type: 'status' };
+    }
+    if (/(list watches|watch list|what am i watching|show watches)/.test(lower)) {
+        return { type: 'list' };
+    }
+    if (/(stop monitor|disable monitor|turn off monitor)/.test(lower)) {
+        return { type: 'stopmonitor' };
+    }
+    if (/(start monitor|monitor launches|watch launches|launch monitor)/.test(lower)) {
+        return { type: 'monitor', githubOnly: /github/.test(lower) };
+    }
+    if (/(watch|track|follow).*(wallet|address)/.test(lower) || lower.startsWith('watch ')) {
+        const labelMatch = text.match(/\b(?:called|named|label)\s+(.+)$/i);
+        return { type: 'watch', wallet: address ?? rememberedWallet, label: labelMatch?.[1]?.trim() };
+    }
+    if (/(unwatch|stop watching|remove watch)/.test(lower)) {
+        const number = text.match(/\b\d+\b/)?.[0];
+        return { type: 'unwatch', target: address ?? number ?? rememberedWallet };
+    }
+    if (/(creator takeover|cto)/.test(lower)) {
+        return { type: 'cto', mintOrWallet: address ?? rememberedWallet ?? rememberedMint };
+    }
+    if (/(alert|alerts)/.test(lower)) {
+        const action = /\bon\b/.test(lower) ? 'on' : /\boff\b/.test(lower) ? 'off' : undefined;
+        const typeMatch = lower.match(/\b(launches?|graduations?|whales?|fees?|all)\b/);
+        return { type: 'alerts', action, alertType: typeMatch?.[1] };
+    }
+    if (/(price|curve|market cap|how much is|what is .* worth)/.test(lower)) {
+        return { type: 'price', mintOrWallet: address ?? rememberedMint };
+    }
+    if (/\bfees?\b/.test(lower)) {
+        return { type: 'fees', mintOrWallet: address ?? rememberedMint };
+    }
+    if (/\b(quote|buy|sell)\b/.test(lower)) {
+        const side: 'buy' | 'sell' = /\bsell\b/.test(lower) ? 'sell' : 'buy';
+        return {
+            type: 'quote',
+            amount: extractQuoteAmount(text),
+            mint: address ?? rememberedMint,
+            side,
+        };
+    }
+
+    return { type: 'unknown' };
+}
+
+async function invokeHandlerWithText(
+    ctx: Context,
+    text: string,
+    handler: (ctx: Context) => Promise<void>,
+): Promise<void> {
+    const original = ctx.message?.text;
+    if (ctx.message) {
+        (ctx.message as { text?: string }).text = text;
+    }
+    try {
+        await handler(ctx);
+    } finally {
+        if (ctx.message) {
+            (ctx.message as { text?: string }).text = original;
+        }
+    }
+}
+
+function rememberConversationContext(
+    ctx: Context,
+    updates: Partial<{
+        githubOnlyFilter: boolean;
+        lastIntent: ConversationIntent;
+        lastTokenMint: string;
+        lastTopic: string;
+        lastWallet: string;
+        monitorActive: boolean;
+    }>,
+): void {
+    const chatId = ctx.chat?.id;
+    if (!chatId) return;
+    updateConversationMemory(chatId, updates);
+}
+
+async function handleNaturalLanguage(
+    ctx: Context,
+    monitor: PumpFunMonitor,
+): Promise<boolean> {
+    const chatId = ctx.chat?.id;
+    if (!chatId || !ctx.from) return false;
+
+    const intent = parseNaturalLanguageIntent(ctx.message?.text || '', chatId);
+
+    switch (intent.type) {
+        case 'greeting': {
+            const memory = getConversationMemory(chatId);
+            await ctx.reply(
+                `👋 I can help with Pump.fun and Solana monitoring in natural language.\n\n${formatNaturalLanguageHint(memory)}`,
+                { parse_mode: 'HTML' },
+            );
+            rememberConversationContext(ctx, {
+                lastIntent: 'chat',
+                lastTopic: 'greeting',
+            });
+            return true;
+        }
+        case 'memory':
+            await ctx.reply(formatMemorySummary(getConversationMemory(chatId)), { parse_mode: 'HTML' });
+            rememberConversationContext(ctx, {
+                lastIntent: 'memory',
+                lastTopic: 'memory summary',
+            });
+            return true;
+        case 'help':
+            await invokeHandlerWithText(ctx, '/help', handleHelpCmd);
+            return true;
+        case 'status':
+            await ctx.reply(formatStatus(monitor.getState(), getWatchesForChat(chatId).length), { parse_mode: 'HTML' });
+            rememberConversationContext(ctx, {
+                lastIntent: 'status',
+                lastTopic: 'bot status',
+            });
+            return true;
+        case 'list':
+            await invokeHandlerWithText(ctx, '/list', handleList);
+            return true;
+        case 'monitor':
+            await invokeHandlerWithText(ctx, intent.githubOnly ? '/monitor github' : '/monitor', handleMonitor);
+            return true;
+        case 'stopmonitor':
+            await invokeHandlerWithText(ctx, '/stopmonitor', handleStopMonitor);
+            return true;
+        case 'watch':
+            if (!intent.wallet) {
+                await ctx.reply('I need a Solana wallet address to watch. Example: <code>watch &lt;wallet&gt; my whale</code>', {
+                    parse_mode: 'HTML',
+                });
+                return true;
+            }
+            await invokeHandlerWithText(
+                ctx,
+                `/watch ${intent.wallet}${intent.label ? ` ${intent.label}` : ''}`,
+                handleWatch,
+            );
+            return true;
+        case 'unwatch':
+            if (!intent.target) {
+                await ctx.reply('Tell me which watch to remove. Example: <code>unwatch 1</code> or <code>stop watching &lt;wallet&gt;</code>', {
+                    parse_mode: 'HTML',
+                });
+                return true;
+            }
+            await invokeHandlerWithText(ctx, `/unwatch ${intent.target}`, handleUnwatch);
+            return true;
+        case 'price':
+            if (!intent.mintOrWallet) {
+                await ctx.reply(formatNaturalLanguageHint(getConversationMemory(chatId)), { parse_mode: 'HTML' });
+                return true;
+            }
+            await invokeHandlerWithText(ctx, `/price ${intent.mintOrWallet}`, handlePrice);
+            return true;
+        case 'fees':
+            if (!intent.mintOrWallet) {
+                await ctx.reply('Tell me which token mint to inspect, or ask about the token we discussed most recently.', {
+                    parse_mode: 'HTML',
+                });
+                return true;
+            }
+            await invokeHandlerWithText(ctx, `/fees ${intent.mintOrWallet}`, handleFees);
+            return true;
+        case 'cto':
+            if (!intent.mintOrWallet) {
+                await ctx.reply('I need a mint or wallet address for CTO lookup.', { parse_mode: 'HTML' });
+                return true;
+            }
+            await invokeHandlerWithText(ctx, `/cto ${intent.mintOrWallet}`, (nextCtx) => handleCto(nextCtx, monitor));
+            return true;
+        case 'alerts':
+            await invokeHandlerWithText(
+                ctx,
+                intent.alertType && intent.action
+                    ? `/alerts ${intent.alertType} ${intent.action}`
+                    : '/alerts',
+                handleAlerts,
+            );
+            return true;
+        case 'quote':
+            if (!intent.mint || !intent.amount) {
+                await ctx.reply(
+                    'I need both a token mint and an amount. Example: <code>buy quote for &lt;mint&gt; 1.5</code> or <code>sell 250k of this token</code>.',
+                    { parse_mode: 'HTML' },
+                );
+                return true;
+            }
+            await invokeHandlerWithText(ctx, `/quote ${intent.side} ${intent.mint} ${intent.amount}`, handleQuote);
+            return true;
+        case 'unknown':
+        default:
+            return false;
     }
 }
 
@@ -850,4 +1207,3 @@ export function createCreatorChangeHandler(bot: Bot) {
 // ============================================================================
 
 // NOTE: escapeHtml is imported from formatters.ts — no duplicate needed here
-

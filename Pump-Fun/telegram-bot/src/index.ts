@@ -23,7 +23,7 @@ import type { TokenLaunchEvent, GraduationEvent, TradeAlertEvent, FeeDistributio
 import { getActiveMonitors } from './launch-store.js';
 import { log, setLogLevel } from './logger.js';
 import { PumpFunMonitor } from './monitor.js';
-import { loadWatches } from './store.js';
+import { loadConversationMemories, loadWatches } from './store.js';
 import { loadApiConfig, PumpFunApi } from './api/index.js';
 
 async function main(): Promise<void> {
@@ -43,6 +43,7 @@ async function main(): Promise<void> {
 
     // ── Load persisted watches ───────────────────────────────────────────
     loadWatches();
+    loadConversationMemories();
 
     // ── Create Solana monitor (not started yet) ──────────────────────────
     // We pass placeholder callbacks; they get replaced after bot creation
@@ -219,21 +220,25 @@ async function main(): Promise<void> {
     } else {
         log.info('Starting Telegram bot in polling mode...');
 
-        await bot.api.setMyCommands([
-            { command: 'start', description: 'Welcome & get started' },
-            { command: 'help', description: 'Show all commands' },
-            { command: 'watch', description: 'Watch a fee recipient wallet' },
-            { command: 'unwatch', description: 'Stop watching a wallet' },
-            { command: 'list', description: 'List active watches' },
-            { command: 'status', description: 'Monitor status & stats' },
-            { command: 'cto', description: 'Creator Takeover lookup & stats' },
-            { command: 'alerts', description: 'Configure alert types per chat' },
-            { command: 'monitor', description: 'Start real-time token launch feed' },
-            { command: 'stopmonitor', description: 'Stop the token launch feed' },
-            { command: 'price', description: 'Token price & bonding curve info' },
-            { command: 'fees', description: 'Show fee tiers for a token' },
-            { command: 'quote', description: 'Buy/sell quote estimate' },
-        ]);
+        try {
+            await bot.api.setMyCommands([
+                { command: 'start', description: 'Welcome & get started' },
+                { command: 'help', description: 'Show all commands' },
+                { command: 'watch', description: 'Watch a fee recipient wallet' },
+                { command: 'unwatch', description: 'Stop watching a wallet' },
+                { command: 'list', description: 'List active watches' },
+                { command: 'status', description: 'Monitor status & stats' },
+                { command: 'cto', description: 'Creator Takeover lookup & stats' },
+                { command: 'alerts', description: 'Configure alert types per chat' },
+                { command: 'monitor', description: 'Start real-time token launch feed' },
+                { command: 'stopmonitor', description: 'Stop the token launch feed' },
+                { command: 'price', description: 'Token price & bonding curve info' },
+                { command: 'fees', description: 'Show fee tiers for a token' },
+                { command: 'quote', description: 'Buy/sell quote estimate' },
+            ]);
+        } catch (err) {
+            log.warn('Failed to register Telegram commands; continuing without setMyCommands:', err);
+        }
 
         bot.start({
             onStart: (info: { username: string }) => {
@@ -266,4 +271,3 @@ main().catch((err) => {
     console.error('Fatal error:', err);
     process.exit(1);
 });
-

@@ -77,11 +77,25 @@ export function loadConfig(): BotConfig {
     const enableFeeDistributionAlerts =
         (process.env.ENABLE_FEE_DISTRIBUTION_ALERTS || 'false').toLowerCase() === 'true';
 
+    const enableNaturalLanguage =
+        (process.env.ENABLE_NATURAL_LANGUAGE || 'true').toLowerCase() === 'true';
+
+    const enableConversationMemory =
+        (process.env.ENABLE_CONVERSATION_MEMORY || 'true').toLowerCase() === 'true';
+
+    const conversationMemoryLimit = Number.parseInt(
+        process.env.CONVERSATION_MEMORY_LIMIT || '24',
+        10,
+    );
+
     return {
         allowedUserIds,
+        conversationMemoryLimit,
+        enableConversationMemory,
         enableFeeDistributionAlerts,
         enableGraduationAlerts,
         enableLaunchMonitor,
+        enableNaturalLanguage,
         enableTradeAlerts,
         githubOnlyFilter,
         ipfsGateway,
@@ -94,4 +108,3 @@ export function loadConfig(): BotConfig {
         whaleThresholdSol,
     };
 }
-
