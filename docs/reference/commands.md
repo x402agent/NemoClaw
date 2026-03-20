@@ -27,6 +27,21 @@ Both interfaces are installed when you run `npm install -g @mawdbotsonsolana/nem
 
 ## Quick Start
 
+### `nemoclaw launch`
+
+Run the fastest host-side path after installation.
+
+```console
+$ nemoclaw launch
+```
+
+This command:
+
+- runs `nemoclaw doctor`
+- runs onboarding automatically if no sandbox exists
+- starts the best available Solana stack for the current machine
+- falls back to relay-only mode when `TELEGRAM_BOT_TOKEN` is not configured yet
+
 ### `nemoclaw solana`
 
 One-shot command that shows your Solana configuration status and lists all available actions.

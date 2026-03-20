@@ -22,7 +22,7 @@ const solana = require("./lib/solana");
 // ── Global commands ──────────────────────────────────────────────
 
 const GLOBAL_COMMANDS = new Set([
-  "onboard", "list", "deploy", "setup", "setup-spark",
+  "onboard", "launch", "list", "deploy", "setup", "setup-spark",
   "start", "stop", "status", "solana", "wallet",
   "doctor", "version", "--version", "-v",
   "help", "--help", "-h",
@@ -76,6 +76,14 @@ function parseMajor(version) {
 function printDoctorLine(status, label, detail) {
   const symbol = status === "ok" ? "✓" : status === "fail" ? "✗" : "!";
   console.log(`  ${symbol} ${label}${detail ? ` — ${detail}` : ""}`);
+}
+
+function isEnabledFlag(value, defaultValue = true) {
+  if (value === undefined || value === null || value === "") {
+    return defaultValue;
+  }
+
+  return !["0", "false", "no", "off"].includes(String(value).trim().toLowerCase());
 }
 
 function getActiveGatewayMetadata() {
@@ -664,7 +672,7 @@ function sandboxWebsocketServer(sandboxName) {
   runSandboxScript(sandboxName, envValues, "nemoclaw-websocket-server");
 }
 
-function sandboxSolanaStack(sandboxName) {
+function sandboxSolanaStack(sandboxName, overrides = {}) {
   const envValues = {
     ...buildSolanaRuntimeEnv(),
     START_TELEGRAM_BOT: process.env.START_TELEGRAM_BOT,
@@ -673,16 +681,56 @@ function sandboxSolanaStack(sandboxName) {
     START_PAYMENT_APP: process.env.START_PAYMENT_APP,
     START_SWARM_BOT: process.env.START_SWARM_BOT,
     START_AGENT_REGISTRY: process.env.START_AGENT_REGISTRY,
+    ...overrides,
   };
+  const needsTelegramToken =
+    isEnabledFlag(envValues.START_TELEGRAM_BOT, true) ||
+    isEnabledFlag(envValues.START_SOLANA_BRIDGE, true);
 
   validateSandboxEnv(
     "the Solana one-shot stack",
     envValues,
-    ["TELEGRAM_BOT_TOKEN"],
+    needsTelegramToken ? ["TELEGRAM_BOT_TOKEN"] : [],
     "SOLANA_RPC_URL, SOLANA_WS_URL, Helius/Privy config, START_PAYMENT_APP, START_SWARM_BOT."
   );
 
   runSandboxScript(sandboxName, envValues, "nemoclaw-solana-stack");
+}
+
+async function launch(actionArgs = []) {
+  const sandboxArg = actionArgs.find((value) => !String(value).startsWith("--"));
+  const hasTelegramToken = Boolean(getCredential("TELEGRAM_BOT_TOKEN"));
+  const stackOverrides = hasTelegramToken
+    ? {}
+    : {
+        START_TELEGRAM_BOT: "false",
+        START_SOLANA_BRIDGE: "false",
+      };
+
+  doctor();
+
+  let sandboxName = resolveSandboxName(sandboxArg);
+  if (!sandboxName) {
+    console.log("  No sandbox found. Running onboard first...");
+    console.log("");
+    const { onboard: runOnboard } = require("./lib/onboard");
+    await runOnboard();
+    sandboxName = resolveSandboxName(sandboxArg);
+    if (!sandboxName) {
+      console.error("  Failed to resolve a sandbox after onboarding.");
+      process.exit(1);
+    }
+  }
+
+  console.log("");
+  console.log(`  Launching NemoClaw → ${sandboxName}`);
+  if (!hasTelegramToken) {
+    console.log("  Telegram token not configured. Starting relay-only mode.");
+    console.log("  Set TELEGRAM_BOT_TOKEN and rerun `nemoclaw launch` for Telegram narration and bot commands.");
+  }
+  console.log("");
+
+  sandboxSolanaStack(sandboxName, stackOverrides);
 }
 
 // ── One-shot Solana quick-start ──────────────────────────────────
@@ -1010,11 +1058,11 @@ function doctor() {
   }
 
   if (sandboxes.length === 0) {
-    console.log("  Next step: `nemoclaw onboard`");
+    console.log("  Next step: `nemoclaw launch`");
   } else if (defaultSandbox) {
-    console.log(`  Next step: \`nemoclaw solana start ${defaultSandbox}\``);
+    console.log(`  Next step: \`nemoclaw launch ${defaultSandbox}\``);
   } else {
-    console.log("  Next step: `nemoclaw solana`");
+    console.log("  Next step: `nemoclaw launch`");
   }
 
   if (warnings.length > 0) {
@@ -1029,12 +1077,13 @@ function help() {
   console.log(`
   nemoclaw — Autonomous Solana Trading Agent
 
-  ⚡ One command to deploy:
+  ⚡ Fastest path:
     npm install -g @mawdbotsonsolana/nemoclaw
-    nemoclaw onboard
+    nemoclaw launch
 
   Getting Started:
     nemoclaw doctor                  Verify Docker, OpenShell, wallet, and RPC setup
+    nemoclaw launch                  Doctor + onboard + start the best available stack
     nemoclaw solana                  Solana status + available commands
     nemoclaw solana start            One-shot startup (bridge + bot + relay)
     nemoclaw wallet create           Create an encrypted Privy agentic wallet
@@ -1092,6 +1141,7 @@ const [cmd, ...args] = process.argv.slice(2);
   if (GLOBAL_COMMANDS.has(cmd)) {
     switch (cmd) {
       case "onboard":     await onboard(); break;
+      case "launch":      await launch(args); break;
       case "setup":       await setup(); break;
       case "setup-spark": await setupSpark(); break;
       case "deploy":      await deploy(args[0]); break;

@@ -1,6 +1,6 @@
 {
   "name": "@mawdbotsonsolana/nemoclaw",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "NemoClaw — one-shot Solana developer agent with Pump-Fun tooling, Privy wallets, OpenShell sandboxing, and a Telegram-native operator stack.",
   "license": "Apache-2.0",
   "keywords": [

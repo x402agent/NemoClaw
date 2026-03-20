@@ -576,12 +576,12 @@
         </div>
         <div class="terminal-body">
           <div class="terminal-line"><span class="prompt">$</span> <span class="cmd">npm install -g @mawdbotsonsolana/nemoclaw</span></div>
-          <div class="terminal-line"><span class="success">✓ installed v0.4.1</span></div>
+          <div class="terminal-line"><span class="success">✓ installed v0.4.2</span></div>
           <div class="terminal-line"><span class="prompt">$</span> <span class="cmd">export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"</span></div>
-          <div class="terminal-line"><span class="prompt">$</span> <span class="cmd">nemoclaw onboard</span></div>
-          <div class="terminal-line"><span class="comment"># Auto-detects Ollama → pulls 8bit/DeepSolana</span></div>
+          <div class="terminal-line"><span class="prompt">$</span> <span class="cmd">nemoclaw launch</span></div>
+          <div class="terminal-line"><span class="comment"># Doctor → onboard if needed → start the stack</span></div>
           <div class="terminal-line"><span class="success">✓ Gateway ready</span> · <span class="success">✓ Sandbox built</span> · <span class="success">✓ Wallet created</span></div>
-          <div class="terminal-line"><span class="prompt">$</span> <span class="cmd">nemoclaw solana start</span></div>
+          <div class="terminal-line"><span class="comment"># Telegram token present? full narration mode</span></div>
           <div class="terminal-line"><span class="success">✓ Telegram bridge online</span></div>
           <div class="terminal-line"><span class="model-name">🦀 NemoClaw is trading autonomously</span></div>
         </div>
@@ -624,8 +624,7 @@
           <p>Open Docker Desktop, run one block, and NemoClaw handles OpenShell, the sandbox, model routing, wallet wiring, Telegram, and Solana services.</p>
           <div class="install-code" id="heroInstallBlock">export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
 npm install -g @mawdbotsonsolana/nemoclaw
-nemoclaw onboard
-nemoclaw solana start</div>
+nemoclaw launch</div>
           <div class="launch-actions">
             <button class="copy-btn" type="button" data-copy-target="heroInstallBlock">Copy Commands</button>
             <button class="copy-btn" type="button" data-download-target="skillText" data-download-name="NemoClaw-Mac-Launch-SKILL.md">Download SKILL.md</button>
@@ -670,11 +669,10 @@ nemoclaw solana start</div>
             <h3>One-Shot on macOS</h3>
             <button class="copy-btn" data-copy-target="macCommandText">Copy</button>
           </div>
-          <p>Open Docker Desktop, run this block, and NemoClaw handles the gateway, sandbox, model routing, wallet setup, and Solana stack. Optional first step: `nemoclaw doctor`.</p>
+          <p>Open Docker Desktop, run this block, and NemoClaw handles doctor checks, gateway setup, sandbox creation, wallet setup, and stack launch. Optional manual first step: `nemoclaw doctor`.</p>
           <div class="skill-code" id="macCommandText">export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
 npm install -g @mawdbotsonsolana/nemoclaw
-nemoclaw onboard
-nemoclaw solana start</div>
+nemoclaw launch</div>
         </div>
         <div class="launch-card">
           <div class="skill-header">
@@ -701,8 +699,7 @@ Use this skill when the user wants to run NemoClaw locally on macOS.
 One-shot flow:
 export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
 npm install -g @mawdbotsonsolana/nemoclaw
-nemoclaw onboard
-nemoclaw solana start
+nemoclaw launch
 
 Recovery:
 docker start openshell-cluster-nemoclaw</div>

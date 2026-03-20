@@ -19,11 +19,10 @@ NemoClaw turns an AI model into a **fully autonomous Solana agent** that trades 
 
 ```bash
 npm install -g @mawdbotsonsolana/nemoclaw
-nemoclaw onboard
-nemoclaw solana start
+nemoclaw launch
 ```
 
-**Three commands. Zero exposed keys. Full autonomy.**
+**Two commands. Zero raw keys. Fastest path to a live Solana operator.**
 
 > **Alpha** — Interfaces may change. We welcome issues and feedback.
 
@@ -36,8 +35,7 @@ If you want the fastest developer path on macOS, use this exact flow:
 ```bash
 export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
 npm install -g @mawdbotsonsolana/nemoclaw
-nemoclaw onboard
-nemoclaw solana start
+nemoclaw launch
 ```
 
 If the OpenShell gateway has stopped but the cluster still exists:
@@ -53,6 +51,10 @@ nemoclaw doctor
 ```
 
 It checks your Node/npm runtime, Docker daemon, OpenShell install, sandbox registry, wallet state, and Solana credentials, then prints the next recommended command.
+
+`nemoclaw launch` runs that diagnostic automatically, onboards if needed, and then starts the best available stack:
+- full Telegram + bridge + relay mode if `TELEGRAM_BOT_TOKEN` is configured
+- relay-only mode if you just want to get the sandbox and Solana services up fast
 
 ## Copy-Paste `SKILL.md`
 
@@ -120,6 +122,14 @@ nemoclaw doctor
 ```
 
 This is the fastest way to catch missing Docker, OpenShell, RPC, or wallet setup before you start onboarding.
+
+### Fastest Launch
+
+```bash
+nemoclaw launch
+```
+
+This runs `doctor`, launches onboarding if no sandbox exists yet, and then starts the stack. If `TELEGRAM_BOT_TOKEN` is missing, NemoClaw falls back to relay-only mode instead of failing the entire launch.
 
 ### Onboard (one time)
 
