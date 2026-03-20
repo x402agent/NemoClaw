@@ -38,4 +38,4 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ```
 
-See the full license text in the [LICENSE](https://github.com/NVIDIA/NemoClaw/blob/main/LICENSE) file.
+See the full license text in the [LICENSE](https://github.com/x402agent/NemoClaw/blob/main/LICENSE) file.

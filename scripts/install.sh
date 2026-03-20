@@ -5,7 +5,7 @@
 # NemoClaw curl-pipe-bash installer.
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/NVIDIA/NemoClaw/main/scripts/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/x402agent/NemoClaw/main/scripts/install.sh | bash
 
 set -euo pipefail
 

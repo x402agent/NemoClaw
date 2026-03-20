@@ -20,11 +20,11 @@ status: published
 
 # Release Notes
 
-NVIDIA NemoClaw is in active development and follows a frequent release cadence. Use the following GitHub resources directly.
+NemoClaw is in active development and follows a frequent release cadence. Use the following GitHub resources directly.
 
 | Resource | Description |
 |---|---|
-| [Releases](https://github.com/NVIDIA/NemoClaw/releases) | Versioned release notes and downloadable assets. |
-| [Release comparison](https://github.com/NVIDIA/NemoClaw/compare) | Diff between any two tags or branches. |
-| [Merged pull requests](https://github.com/NVIDIA/NemoClaw/pulls?q=is%3Apr+is%3Amerged) | Individual changes with review discussion. |
-| [Commit history](https://github.com/NVIDIA/NemoClaw/commits/main) | Full commit log on `main`. |
+| [Releases](https://github.com/x402agent/NemoClaw/releases) | Versioned release notes and downloadable assets. |
+| [Release comparison](https://github.com/x402agent/NemoClaw/compare) | Diff between any two tags or branches. |
+| [Merged pull requests](https://github.com/x402agent/NemoClaw/pulls?q=is%3Apr+is%3Amerged) | Individual changes with review discussion. |
+| [Commit history](https://github.com/x402agent/NemoClaw/commits/main) | Full commit log on `main`. |

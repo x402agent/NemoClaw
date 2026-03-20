@@ -18,6 +18,7 @@ command_exists() { command -v "$1" &>/dev/null; }
 MIN_NODE_MAJOR=20
 MIN_NPM_MAJOR=10
 RECOMMENDED_NODE_MAJOR=22
+NPM_PACKAGE="@mawdbotsonsolana/nemoclaw"
 RUNTIME_REQUIREMENT_MSG="NemoClaw requires Node.js >=${MIN_NODE_MAJOR} and npm >=${MIN_NPM_MAJOR} (recommended Node.js ${RECOMMENDED_NODE_MAJOR})."
 
 # Compare two semver strings (major.minor.patch). Returns 0 if $1 >= $2.
@@ -194,13 +195,17 @@ install_or_upgrade_ollama() {
 # 3. NemoClaw
 # ---------------------------------------------------------------------------
 install_nemoclaw() {
-  if [[ -f "./package.json" ]] && grep -q '"name": "nemoclaw"' ./package.json 2>/dev/null; then
+  local local_package_name=""
+  if [[ -f "./package.json" ]]; then
+    local_package_name="$(node -p "try { require('./package.json').name } catch { '' }" 2>/dev/null || true)"
+  fi
+
+  if [[ "$local_package_name" == "$NPM_PACKAGE" ]]; then
     info "NemoClaw package.json found in current directory — installing from source…"
     npm install && npm link
   else
-    info "Installing NemoClaw from npm…"
-    # Revert once https://github.com/NVIDIA/NemoClaw/issues/71 is complete and the package is published
-    npm install -g git+ssh://git@github.com/nvidia/NemoClaw.git
+    info "Installing NemoClaw from npm (${NPM_PACKAGE})…"
+    npm install -g "$NPM_PACKAGE"
   fi
 
   refresh_path
@@ -236,7 +241,7 @@ verify_nemoclaw() {
     return 0
   else
     warn "Could not locate the nemoclaw executable."
-    warn "Try running:  npm install -g nemoclaw"
+    warn "Try running:  npm install -g ${NPM_PACKAGE}"
   fi
 
   error "Installation failed: nemoclaw binary not found."

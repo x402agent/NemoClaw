@@ -46,6 +46,14 @@ If the OpenShell gateway has stopped but the cluster still exists:
 docker start openshell-cluster-nemoclaw
 ```
 
+If you want a dry run before onboarding, use:
+
+```bash
+nemoclaw doctor
+```
+
+It checks your Node/npm runtime, Docker daemon, OpenShell install, sandbox registry, wallet state, and Solana credentials, then prints the next recommended command.
+
 ## Copy-Paste `SKILL.md`
 
 Paste [`SKILL.md`](./SKILL.md) into Claude, Codex, Cursor, or any agent that supports repo or system skills.
@@ -94,6 +102,7 @@ This is the public developer path to feature at `nemo.nanosolana.com`: one-shot 
 
 ---
 
+<!-- start-quickstart-guide -->
 ## Quick Start
 
 ### Install
@@ -103,6 +112,14 @@ npm install -g @mawdbotsonsolana/nemoclaw
 ```
 
 > Requires: **Node.js 20+**, **Docker**, **Linux** (Ubuntu 22.04+). macOS works for CLI management; the sandbox runs in Docker.
+
+### Validate the Machine
+
+```bash
+nemoclaw doctor
+```
+
+This is the fastest way to catch missing Docker, OpenShell, RPC, or wallet setup before you start onboarding.
 
 ### Onboard (one time)
 
@@ -151,6 +168,8 @@ One command spins up the full Solana operator stack inside the sandbox:
 | **Agent Registry** | 8004 on-chain registration + heartbeat liveness (default on) |
 | Payment App | Payment-gated agent (enable: `START_PAYMENT_APP=true`) |
 | Swarm Bot | Multi-bot orchestration dashboard (enable: `START_SWARM_BOT=true`) |
+
+<!-- end-quickstart-guide -->
 
 ---
 

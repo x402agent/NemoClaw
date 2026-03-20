@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NemoClaw — One-Shot Solana Agent for Mac and AI Agents</title>
-  <meta name="description" content="Launch NemoClaw on your Mac in one flow, then paste one SKILL.md into your AI agent. Trade tokens, manage wallets, narrate on Telegram — all sandboxed.">
+  <title>NemoClaw — One-Shot Solana Builder Stack for Mac and AI Agents</title>
+  <meta name="description" content="Launch a shareable Solana agent stack on your Mac, wire wallet and Telegram safely, then hand the repo to your coding agent with one SKILL.md.">
   <meta name="keywords" content="NemoClaw, Solana, trading agent, AI, DeepSolana, Pump-Fun, Telegram bot, DeFi, autonomous agent, NVIDIA, OpenShell">
-  <meta property="og:title" content="NemoClaw — One-Shot Solana Agent for Mac and AI Agents">
-  <meta property="og:description" content="One-shot on macOS. Copy one SKILL.md into your AI agent. Zero exposed keys.">
+  <meta property="og:title" content="NemoClaw — One-Shot Solana Builder Stack for Mac and AI Agents">
+  <meta property="og:description" content="One-shot on macOS. Shareable Solana demos, safe wallet handling, and one SKILL.md for your coding agent.">
   <meta property="og:type" content="website">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -559,11 +559,11 @@
       <div class="hero-badge"><span class="dot"></span> Live on Solana Mainnet</div>
       <h1>
         <span class="gradient">NemoClaw</span><br>
-        Run It in 3 Commands.<br>Hand It to Your Agent.
+        Launch It in 3 Commands.<br>Ship It With Your Agent.
       </h1>
       <p class="hero-sub">
-        Launch a Solana operator on your Mac, trade and narrate on Telegram, then paste one
-        <strong>SKILL.md</strong> into Claude, Codex, or Cursor so your agent can operate the stack without leaking keys.
+        Launch a sandboxed Solana operator on your Mac, demo it on Telegram, then paste one
+        <strong>SKILL.md</strong> into Claude, Codex, or Cursor so your agent can run the stack without leaking keys or fumbling setup.
       </p>
 
       <!-- Terminal Animation -->
@@ -648,6 +648,10 @@ nemoclaw solana start</div>
               <strong>No raw keys in git</strong>
               <span>Privy-managed wallets and release audits keep the public story safe.</span>
             </div>
+            <div class="install-item">
+              <strong>Fast failure recovery</strong>
+              <span>`nemoclaw doctor` catches machine drift before you waste time inside the wizard.</span>
+            </div>
           </div>
         </div>
       </div>
@@ -666,7 +670,7 @@ nemoclaw solana start</div>
             <h3>One-Shot on macOS</h3>
             <button class="copy-btn" data-copy-target="macCommandText">Copy</button>
           </div>
-          <p>Open Docker Desktop, run this block, and NemoClaw handles the gateway, sandbox, model routing, wallet setup, and Solana stack.</p>
+          <p>Open Docker Desktop, run this block, and NemoClaw handles the gateway, sandbox, model routing, wallet setup, and Solana stack. Optional first step: `nemoclaw doctor`.</p>
           <div class="skill-code" id="macCommandText">export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
 npm install -g @mawdbotsonsolana/nemoclaw
 nemoclaw onboard
@@ -692,6 +696,7 @@ Use this skill when the user wants to run NemoClaw locally on macOS.
 - Never ask for or print raw private keys.
 - Never commit .env, ~/.nemoclaw, credentials.json, or *.keypair.json.
 - Prefer Privy-managed wallets and runtime env vars.
+- Run `nemoclaw doctor` first if the machine state looks uncertain.
 
 One-shot flow:
 export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"

@@ -98,7 +98,7 @@ html_theme_options = {
     "icon_links": [
         {
             "name": "GitHub",
-            "url": "https://github.com/NVIDIA/NemoClaw",
+            "url": "https://github.com/x402agent/NemoClaw",
             "icon": "fa-brands fa-github",
             "type": "fontawesome",
         },

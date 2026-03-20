@@ -27,7 +27,7 @@ The deploy command provisions the VM, installs dependencies, and connects you to
 
 - The [Brev CLI](https://brev.nvidia.com) installed and authenticated.
 - An NVIDIA API key from [build.nvidia.com](https://build.nvidia.com).
-- NemoClaw installed locally. Install with `npm install -g nemoclaw`.
+- NemoClaw installed locally. Install with `npm install -g @mawdbotsonsolana/nemoclaw`.
 
 ## Deploy the Instance
 

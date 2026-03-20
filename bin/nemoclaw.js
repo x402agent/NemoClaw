@@ -24,8 +24,21 @@ const solana = require("./lib/solana");
 const GLOBAL_COMMANDS = new Set([
   "onboard", "list", "deploy", "setup", "setup-spark",
   "start", "stop", "status", "solana", "wallet",
+  "doctor", "version", "--version", "-v",
   "help", "--help", "-h",
 ]);
+
+const MIN_NODE_MAJOR = 20;
+const MIN_NPM_MAJOR = 10;
+
+function getCliVersion() {
+  try {
+    const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf-8"));
+    return pkg.version || "unknown";
+  } catch {
+    return "unknown";
+  }
+}
 
 function shellQuote(value) {
   return `'${String(value).replace(/'/g, `'\\''`)}'`;
@@ -53,6 +66,16 @@ function runCaptureDetailed(cmd, opts = {}) {
     status: result.status || 0,
     output: `${result.stdout || ""}${result.stderr || ""}`.trim(),
   };
+}
+
+function parseMajor(version) {
+  const match = String(version || "").match(/(\d+)/);
+  return match ? Number(match[1]) : null;
+}
+
+function printDoctorLine(status, label, detail) {
+  const symbol = status === "ok" ? "✓" : status === "fail" ? "✗" : "!";
+  console.log(`  ${symbol} ${label}${detail ? ` — ${detail}` : ""}`);
 }
 
 function getActiveGatewayMetadata() {
@@ -867,6 +890,139 @@ async function walletCommand(actionArgs = []) {
   }
 }
 
+function showVersion() {
+  console.log(`@mawdbotsonsolana/nemoclaw v${getCliVersion()}`);
+}
+
+function doctor() {
+  const blockers = [];
+  const warnings = [];
+
+  console.log("");
+  console.log("  NemoClaw Doctor");
+  console.log("  ═══════════════");
+  console.log(`  CLI: ${getCliVersion()}  Platform: ${process.platform}/${process.arch}`);
+  console.log("");
+
+  const nodeVersion = process.version;
+  const nodeMajor = parseMajor(nodeVersion);
+  if (nodeMajor !== null && nodeMajor >= MIN_NODE_MAJOR) {
+    printDoctorLine("ok", "Node.js", nodeVersion);
+  } else {
+    printDoctorLine("fail", "Node.js", `${nodeVersion || "missing"} (requires >= ${MIN_NODE_MAJOR})`);
+    blockers.push(`Upgrade Node.js to ${MIN_NODE_MAJOR}+ and rerun the install.`);
+  }
+
+  const npmVersion = runCaptureDetailed("npm --version 2>/dev/null");
+  const npmMajor = parseMajor(npmVersion.output);
+  if (npmVersion.status === 0 && npmMajor !== null && npmMajor >= MIN_NPM_MAJOR) {
+    printDoctorLine("ok", "npm", `v${npmVersion.output}`);
+  } else {
+    printDoctorLine("fail", "npm", npmVersion.output || `missing (requires >= ${MIN_NPM_MAJOR})`);
+    blockers.push(`Install npm ${MIN_NPM_MAJOR}+ so global CLI installs succeed.`);
+  }
+
+  const dockerVersion = runCaptureDetailed("docker --version 2>/dev/null");
+  if (dockerVersion.status === 0 && dockerVersion.output) {
+    printDoctorLine("ok", "Docker CLI", dockerVersion.output);
+  } else {
+    printDoctorLine("fail", "Docker CLI", "not found on PATH");
+    blockers.push("Install Docker Desktop or Colima so the sandbox can start.");
+  }
+
+  const dockerServer = runCaptureDetailed("docker info --format '{{.ServerVersion}}' 2>/dev/null");
+  if (dockerServer.status === 0 && dockerServer.output) {
+    printDoctorLine("ok", "Docker daemon", `server ${dockerServer.output}`);
+  } else {
+    printDoctorLine("fail", "Docker daemon", "not reachable");
+    blockers.push("Start Docker Desktop or Colima before running `nemoclaw onboard`.");
+  }
+
+  const openshellVersion = runCaptureDetailed("openshell --version 2>/dev/null");
+  if (openshellVersion.status === 0 && openshellVersion.output) {
+    printDoctorLine("ok", "OpenShell", openshellVersion.output);
+  } else {
+    printDoctorLine("warn", "OpenShell", "not installed yet; `nemoclaw onboard` will try to install it");
+    warnings.push("OpenShell is missing.");
+  }
+
+  const { sandboxes } = registry.listSandboxes();
+  const defaultSandbox = registry.getPreferredDefault
+    ? registry.getPreferredDefault()
+    : registry.getDefault();
+  if (sandboxes.length > 0) {
+    const current = defaultSandbox && registry.getSandbox(defaultSandbox);
+    const detail = current
+      ? `${current.name} (${current.provider || "unknown provider"}, ${current.model || "unknown model"})`
+      : `${sandboxes.length} sandbox${sandboxes.length === 1 ? "" : "es"} registered`;
+    printDoctorLine("ok", "Sandbox registry", detail);
+  } else {
+    printDoctorLine("warn", "Sandbox registry", "no sandboxes registered");
+    warnings.push("No sandbox is registered yet.");
+  }
+
+  const solConfig = solana.loadSolanaConfig();
+  const rpcUrl = getCredential("SOLANA_RPC_URL") || (solConfig && solConfig.rpcUrl);
+  if (rpcUrl) {
+    printDoctorLine("ok", "Solana RPC", rpcUrl);
+  } else {
+    printDoctorLine("warn", "Solana RPC", "not configured");
+    warnings.push("No Solana RPC URL configured.");
+  }
+
+  const privyConfig = solana.loadPrivyConfig();
+  if (privyConfig && privyConfig.appId) {
+    printDoctorLine("ok", "Privy", `configured (${privyConfig.appId.slice(0, 12)}...)`);
+  } else {
+    printDoctorLine("warn", "Privy", "not configured");
+    warnings.push("Privy credentials are missing.");
+  }
+
+  const wallet = solana.getDefaultWallet();
+  if (wallet && wallet.address) {
+    printDoctorLine("ok", "Agent wallet", wallet.address);
+  } else {
+    printDoctorLine("warn", "Agent wallet", "not created yet");
+    warnings.push("No default Privy wallet has been created.");
+  }
+
+  if (getCredential("TELEGRAM_BOT_TOKEN")) {
+    printDoctorLine("ok", "Telegram bot token", "configured");
+  } else {
+    printDoctorLine("warn", "Telegram bot token", "missing");
+    warnings.push("Telegram bot token is missing.");
+  }
+
+  const heliusKey = getCredential("HELIUS_API_KEY");
+  if (heliusKey) {
+    printDoctorLine("ok", "Helius API key", "configured");
+  } else {
+    printDoctorLine("warn", "Helius API key", "missing");
+    warnings.push("Helius API key is missing.");
+  }
+
+  console.log("");
+  if (blockers.length > 0) {
+    console.log("  Blocking issues:");
+    blockers.forEach((item) => console.log(`    - ${item}`));
+    console.log("");
+    process.exit(1);
+  }
+
+  if (sandboxes.length === 0) {
+    console.log("  Next step: `nemoclaw onboard`");
+  } else if (defaultSandbox) {
+    console.log(`  Next step: \`nemoclaw solana start ${defaultSandbox}\``);
+  } else {
+    console.log("  Next step: `nemoclaw solana`");
+  }
+
+  if (warnings.length > 0) {
+    console.log("  Recommended follow-up: fill in the warning items before going live.");
+  }
+  console.log("");
+}
+
 // ── Help ─────────────────────────────────────────────────────────
 
 function help() {
@@ -878,6 +1034,7 @@ function help() {
     nemoclaw onboard
 
   Getting Started:
+    nemoclaw doctor                  Verify Docker, OpenShell, wallet, and RPC setup
     nemoclaw solana                  Solana status + available commands
     nemoclaw solana start            One-shot startup (bridge + bot + relay)
     nemoclaw wallet create           Create an encrypted Privy agentic wallet
@@ -907,6 +1064,7 @@ function help() {
 
   Services:
     nemoclaw start / stop / status   Manage auxiliary services
+    nemoclaw version                 Print the installed CLI version
 
   Inside the sandbox you get:
     helius-cli, plus Solana CLI tools when the target architecture supports them
@@ -941,8 +1099,12 @@ const [cmd, ...args] = process.argv.slice(2);
       case "stop":        stop(); break;
       case "status":      showStatus(); break;
       case "list":        listSandboxes(); break;
+      case "doctor":      doctor(); break;
       case "solana":      await quickStartSolana(args); break;
       case "wallet":      await walletCommand(args); break;
+      case "version":
+      case "--version":
+      case "-v":          showVersion(); break;
       default:            help(); break;
     }
     return;

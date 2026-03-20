@@ -14,8 +14,6 @@
 # Usage:
 #   bash test/e2e/test-full-e2e.sh
 #
-# See: https://github.com/NVIDIA/NemoClaw/issues/71
-
 set -uo pipefail
 
 PASS=0
@@ -110,13 +108,14 @@ section "Phase 2: Install nemoclaw"
 cd "$REPO"
 
 # Install from source (same as install.sh's install_nemoclaw does in a repo dir)
-if [ -f "./package.json" ] && grep -q '"name": "nemoclaw"' ./package.json 2>/dev/null; then
+PACKAGE_NAME="$(node -p "try { require('./package.json').name } catch { '' }" 2>/dev/null || true)"
+if [ "$PACKAGE_NAME" = "@mawdbotsonsolana/nemoclaw" ]; then
   info "Installing nemoclaw from source (npm install + npm link)..."
   npm install 2>&1 | tail -3
   npm link 2>&1 | tail -3
 else
   info "Installing nemoclaw globally..."
-  npm install -g nemoclaw 2>&1 | tail -3
+  npm install -g @mawdbotsonsolana/nemoclaw 2>&1 | tail -3
 fi
 
 # Source bashrc in case nvm/asdf modified it

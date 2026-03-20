@@ -29,6 +29,7 @@ describe("CLI dispatch", () => {
     assert.ok(r.out.includes("Getting Started"), "missing Getting Started section");
     assert.ok(r.out.includes("Sandbox Management"), "missing Sandbox Management section");
     assert.ok(r.out.includes("Policy Presets"), "missing Policy Presets section");
+    assert.ok(r.out.includes("doctor"), "missing doctor command");
     assert.ok(r.out.includes("solana-agent"), "missing Solana agent action");
     assert.ok(r.out.includes("solana-bridge"), "missing Solana bridge action");
     assert.ok(r.out.includes("solana start"), "missing Solana one-shot action");
@@ -61,6 +62,13 @@ describe("CLI dispatch", () => {
     assert.equal(r.code, 0);
     // With empty HOME, should say no sandboxes
     assert.ok(r.out.includes("No sandboxes"));
+  });
+
+  it("version exits 0 and shows package version", () => {
+    const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "package.json"), "utf-8"));
+    const r = run("version");
+    assert.equal(r.code, 0);
+    assert.ok(r.out.includes(pkg.version), "missing CLI version");
   });
 
   it("solana overview prefers active gateway last sandbox over first registry entry", () => {

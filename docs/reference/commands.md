@@ -23,7 +23,7 @@ status: published
 NemoClaw provides two command interfaces.
 The plugin commands run under the `openclaw nemoclaw` namespace inside the OpenClaw CLI.
 The standalone `nemoclaw` binary handles host-side setup, deployment, Solana integration, and service management.
-Both interfaces are installed when you run `npm install -g nemoclaw`.
+Both interfaces are installed when you run `npm install -g @mawdbotsonsolana/nemoclaw`.
 
 ## Quick Start
 
@@ -35,6 +35,22 @@ If no sandbox exists, it runs the full onboard wizard automatically.
 ```console
 $ nemoclaw solana
 ```
+
+### `nemoclaw doctor`
+
+Run a host-side diagnostic pass before onboarding or going live.
+
+```console
+$ nemoclaw doctor
+```
+
+This checks:
+
+- Node.js and npm versions
+- Docker CLI and daemon availability
+- OpenShell installation state
+- sandbox registry state
+- Solana RPC, Privy wallet, Telegram token, and Helius configuration
 
 ### `nemoclaw onboard`
 
