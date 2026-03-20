@@ -17,6 +17,8 @@
 
 NemoClaw turns an AI model into a **fully autonomous Solana agent** that trades tokens, manages its own encrypted wallet, and narrates everything it does in natural language on Telegram — all running inside a hardened [OpenShell](https://github.com/NVIDIA/OpenShell) sandbox where every network request, file access, and on-chain transaction is governed by policy.
 
+**Live on npm:** `@mawdbotsonsolana/nemoclaw@0.4.2`
+
 ```bash
 npm install -g @mawdbotsonsolana/nemoclaw
 nemoclaw launch
@@ -25,6 +27,26 @@ nemoclaw launch
 **Two commands. Zero raw keys. Fastest path to a live Solana operator.**
 
 > **Alpha** — Interfaces may change. We welcome issues and feedback.
+
+---
+
+## What Shipped Today
+
+### npm Release
+
+The current public package is:
+
+```bash
+npm install -g @mawdbotsonsolana/nemoclaw@0.4.2
+```
+
+### New in `0.4.2`
+
+- `nemoclaw launch` is now the fastest path: it runs `doctor`, onboards if needed, and starts the best available stack automatically.
+- `nemoclaw doctor` gives a host-side preflight for Node/npm, Docker, OpenShell, sandbox state, RPC, Privy, wallet, Telegram, and Helius.
+- Launch now degrades cleanly to relay-only mode when `TELEGRAM_BOT_TOKEN` is not configured instead of failing the full flow.
+- The installer now targets the published scoped npm package instead of stale git-based install paths.
+- The README, docs, landing page, and command help were aligned around the new one-shot developer flow.
 
 ---
 
