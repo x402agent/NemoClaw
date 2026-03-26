@@ -1,0 +1,14 @@
+{
+  "name": "nemoclaw-fly-wrapper",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Wrapper server for NemoClaw on Fly.io — setup wizard + gateway proxy",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "http-proxy-middleware": "^3.0.0"
+  }
+}
