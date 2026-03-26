@@ -78,6 +78,194 @@ It checks your Node/npm runtime, Docker daemon, OpenShell install, sandbox regis
 - full Telegram + bridge + relay mode if `TELEGRAM_BOT_TOKEN` is configured
 - relay-only mode if you just want to get the sandbox and Solana services up fast
 
+## Deploy NemoClaw on Fly.io
+
+To deploy NemoClaw to Fly.io, run the deploy script. It handles everything — app creation, volumes, secrets, and deployment.
+
+```bash
+cd nemoclaw
+bash deploy/fly/deploy.sh
+```
+
+You'll need `flyctl` installed, a Fly.io account (free trial works), and an LLM API key (Anthropic, OpenAI, NVIDIA, Google Gemini, OpenRouter, Moonshot AI, or MiniMax).
+
+### How it works
+
+The deploy script sets up a wrapper server that manages the NemoClaw gateway and provides a browser-based setup wizard:
+
+```
+Internet → Fly.io proxy → Wrapper server (:3000) → NemoClaw gateway (:18789)
+                              ├── /setup      → Setup wizard (password-protected)
+                              ├── /healthz    → Health check (no auth)
+                              └── /*          → Proxied to gateway
+```
+
+All state lives on a persistent volume mounted at `/data`, so your configuration, conversation history, wallets, and installed tools survive restarts and redeployments.
+
+The script will prompt you for:
+
+- **App name** — defaults to `nemoclaw-XXXX` (random suffix). This becomes your URL: `https://your-app-name.fly.dev`
+- **Region** — where to run your Machine (defaults to `iad` / Virginia). Pick one close to you for lower latency. See [Fly.io regions](https://fly.io/docs/reference/regions/) for the full list.
+- **Setup password** — protects the `/setup` wizard from the internet. Pick something strong.
+- **LLM provider** — choose from Anthropic, OpenAI, NVIDIA, Google Gemini, OpenRouter, Moonshot AI, or MiniMax
+- **LLM API key** — the key for your chosen provider
+- **Channel tokens** (optional) — Discord bot token, Telegram bot token, or Slack bot + app tokens
+- **Solana config** (optional) — RPC URL, Helius API key, Privy App ID/Secret for agentic wallets
+
+The script then creates a Fly app, provisions a persistent volume, sets your credentials as encrypted Fly secrets, and builds and deploys the Docker image on Fly's remote builders. The first deploy takes a few minutes. Your credentials never leave your machine — they go directly to Fly.io via `flyctl`.
+
+### Post-deploy setup
+
+Once deployment completes, the script prints your app details:
+
+```
+=== Deployment Complete ===
+
+  App URL:       https://your-app-name.fly.dev
+  Setup wizard:  https://your-app-name.fly.dev/setup
+  Gateway URL:   wss://your-app-name.fly.dev
+  Gateway token: <your-generated-token>
+```
+
+#### Setup wizard
+
+Visit `https://your-app-name.fly.dev/setup` in your browser. Log in with any username and the setup password you chose. From the wizard you can:
+
+- Change your LLM provider and API key
+- Configure Solana RPC, Helius, and Privy wallet credentials
+- Add or update Discord, Telegram, and Slack channel connections
+- Edit the raw NemoClaw config
+- View gateway logs
+- Export and import configuration backups
+
+#### Connect your local CLI
+
+If you have OpenClaw installed locally, point it at your remote gateway:
+
+```bash
+openclaw config set gateway.mode remote
+openclaw config set gateway.remote.url wss://your-app-name.fly.dev
+openclaw config set gateway.remote.token <your-gateway-token>
+openclaw health  # verify the connection
+```
+
+This lets you use the `openclaw` CLI on your laptop while the gateway runs on Fly.io, keeping conversations and state persistent even when your laptop is closed.
+
+### Configuration
+
+#### Secrets
+
+All sensitive values are stored as Fly secrets, encrypted at rest and injected as environment variables at boot. They are never visible in logs, config files, or the Fly dashboard.
+
+| Secret | Required | Description |
+|--------|----------|-------------|
+| `SETUP_PASSWORD` | Yes | Protects the `/setup` wizard with HTTP Basic Auth |
+| `NEMOCLAW_GATEWAY_TOKEN` | Yes | Auth token for gateway connections (auto-generated) |
+| `NEMOCLAW_API_KEY` | Yes | Your LLM provider API key |
+| `NEMOCLAW_AUTH_CHOICE` | Yes | Provider identifier (set by deploy script) |
+| `NEMOCLAW_DISCORD_TOKEN` | No | Discord bot token |
+| `NEMOCLAW_TELEGRAM_TOKEN` | No | Telegram bot token |
+| `NEMOCLAW_SLACK_BOT_TOKEN` | No | Slack bot token (`xoxb-...`) |
+| `NEMOCLAW_SLACK_APP_TOKEN` | No | Slack app token (`xapp-...`, required if bot token is set) |
+| `SOLANA_RPC_URL` | No | Custom Solana RPC endpoint |
+| `HELIUS_API_KEY` | No | Helius RPC API key |
+| `PRIVY_APP_ID` | No | Privy agentic wallet app ID |
+| `PRIVY_APP_SECRET` | No | Privy agentic wallet app secret |
+
+To update a secret after deployment:
+
+```bash
+fly secrets set NEMOCLAW_API_KEY=sk-new-key-here -a your-app-name
+```
+
+The Machine restarts automatically when secrets change.
+
+#### VM sizing
+
+The default configuration uses a `shared-cpu-2x` Machine with 4 GB RAM, which costs roughly $20-25/month when running continuously. With auto-stop enabled (the default), you only pay for time the Machine is actually running.
+
+```bash
+fly scale memory 4096 -a your-app-name
+fly scale vm shared-cpu-4x -a your-app-name
+```
+
+#### Persistent storage
+
+NemoClaw stores all state on a Fly Volume mounted at `/data`. This includes:
+
+- `nemoclaw.json` — wrapper configuration
+- `.openclaw/` — gateway configuration, conversation history, context
+- `.nemoclaw/wallets/` — wallet data (encrypted)
+- `.nemoclaw/vault/` — append-only JSONL trade and heartbeat logs
+- npm/pnpm caches for user-installed packages
+
+The default volume size is 1 GB. To extend it:
+
+```bash
+fly volumes extend <volume-id> -s 3 -a your-app-name
+```
+
+### Useful commands
+
+| Command | Description |
+|---------|-------------|
+| `fly logs -a your-app-name` | Stream live logs |
+| `fly ssh console -a your-app-name` | SSH into the Machine |
+| `fly apps restart your-app-name` | Restart after config changes |
+| `fly scale memory 4096 -a your-app-name` | Increase memory |
+| `fly status -a your-app-name` | Check Machine status |
+| `fly volumes list -a your-app-name` | List attached volumes |
+
+### Troubleshooting
+
+**"SETUP_PASSWORD is not set"** — The setup password secret is missing:
+
+```bash
+fly secrets set SETUP_PASSWORD=your-password -a your-app-name
+```
+
+**Out of memory / crashes** — Increase the Machine's memory:
+
+```bash
+fly scale memory 4096 -a your-app-name
+```
+
+**Gateway won't start** — Visit `/setup` in your browser and check the logs section. Common causes: invalid API key, missing config file, or corrupted state.
+
+**Lock file errors** — If the gateway didn't shut down cleanly:
+
+```bash
+fly ssh console -a your-app-name
+rm -f /data/gateway.*.lock
+exit
+fly apps restart your-app-name
+```
+
+**Need to start fresh** — Use the "Reset" button in the setup wizard, or SSH in and remove the config:
+
+```bash
+fly ssh console -a your-app-name
+rm /data/nemoclaw.json
+exit
+fly apps restart your-app-name
+```
+
+### Supported LLM providers
+
+| Provider | What you need |
+|----------|---------------|
+| Anthropic | API key from [console.anthropic.com](https://console.anthropic.com) |
+| OpenAI | API key from [platform.openai.com](https://platform.openai.com) |
+| NVIDIA | API key from [build.nvidia.com](https://build.nvidia.com) |
+| Google Gemini | API key from [aistudio.google.com](https://aistudio.google.com) |
+| OpenRouter | API key from [openrouter.ai](https://openrouter.ai) |
+| Moonshot AI | API key from Moonshot's developer portal |
+| MiniMax | API key from MiniMax's developer portal |
+
+You can switch providers at any time through the setup wizard — no redeployment needed.
+
+---
+
 ## Copy-Paste `SKILL.md`
 
 Paste [`SKILL.md`](./SKILL.md) into Claude, Codex, Cursor, or any agent that supports repo or system skills.
