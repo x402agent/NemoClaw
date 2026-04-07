@@ -12,7 +12,7 @@ Thumbs.db
 *.swp
 *.swo
 *~
-.vscode/settings.json
+.vscode/
 .idea/
 
 # ── Documentation build ──────────────────────────────────────────
@@ -42,6 +42,7 @@ solana-wallet.json
 test-ledger/
 
 # Generic secret patterns
+auth.json
 credentials.json
 secrets.json
 *.pem
