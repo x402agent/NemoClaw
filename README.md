@@ -1,8 +1,8 @@
 <p align="center">
-  <strong>🦀 NemoClaw</strong><br/>
+  <strong>🦀 NemoClawd</strong><br/>
   <em>Autonomous Solana Trading Agent — Sandboxed, Wallet-Enabled, Telegram-Native</em>
 </p>
-
+8cHzQHUS2s2h8TzCmfqPKYiM4dSt4roa3n7MyRLApump
 <p align="center">
   <a href="https://www.npmjs.com/package/@mawdbotsonsolana/nemoclaw"><img src="https://img.shields.io/npm/v/@mawdbotsonsolana/nemoclaw.svg?style=flat-square&color=cb3837" alt="npm"></a>
   <a href="https://github.com/x402agent/NemoClaw/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue?style=flat-square" alt="License"></a>
