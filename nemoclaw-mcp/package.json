@@ -1,0 +1,44 @@
+{
+  "name": "@mawdbotsonsolana/nemoclaw-mcp",
+  "version": "0.1.0",
+  "description": "nemoClawd MCP Server — xAI Grok powered Solana agentic tools with 31 MCP tools",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "nemoclaw-mcp": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js",
+    "start:stdio": "node dist/index.js",
+    "start:http": "node dist/http.js",
+    "lint": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@solana/web3.js": "^1.98.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.0.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "keywords": [
+    "solana",
+    "mcp",
+    "solana-agent",
+    "xai",
+    "grok",
+    "meme-coin",
+    "pump-fun",
+    "trading-bot"
+  ],
+  "license": "MIT"
+}
