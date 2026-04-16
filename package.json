@@ -1,7 +1,7 @@
 {
   "name": "@mawdbotsonsolana/nemoclaw",
-  "version": "0.4.2",
-  "description": "NemoClaw — one-shot Solana developer agent with Pump-Fun tooling, Privy wallets, OpenShell sandboxing, and a Telegram-native operator stack.",
+  "version": "0.5.0",
+  "description": "nemoClawd — xAI Grok powered Solana agentic trading engine with $CLAWD token, 31 MCP tools, multi-agent research, and Telegram trading bot.",
   "license": "Apache-2.0",
   "keywords": [
     "solana",
@@ -20,7 +20,13 @@
     "defi",
     "autonomous-agent",
     "ollama",
-    "deepsolana"
+    "deepsolana",
+    "xai",
+    "grok",
+    "mcp",
+    "solana-clawd",
+    "memecoin",
+    "solana-trading"
   ],
   "bin": {
     "nemoclaw": "bin/nemoclaw.js"
@@ -28,11 +34,13 @@
   "scripts": {
     "test": "node --test test/*.test.js",
     "build:plugin": "npm --prefix nemoclaw run build",
+    "build:mcp": "npm --prefix nemoclaw-mcp run build",
+    "build": "npm run build:plugin && npm run build:mcp",
     "public:audit": "bash scripts/public-release-audit.sh",
     "pack:check": "npm pack --dry-run --cache /tmp/nemoclaw-npm-cache",
-    "release:check": "npm run build:plugin && npm test && npm run public:audit && npm run pack:check",
+    "release:check": "npm run build && npm test && npm run public:audit && npm run pack:check",
     "publish:public": "npm publish --access public",
-    "prepublishOnly": "npm run build:plugin && npm test"
+    "prepublishOnly": "npm run build && npm test"
   },
   "dependencies": {
     "openclaw": "2026.3.11"
@@ -43,6 +51,7 @@
     "nemoclaw/dist/",
     "nemoclaw/openclaw.plugin.json",
     "nemoclaw/package.json",
+    "nemoclaw-mcp/",
     "nemoclaw-blueprint/",
     "Pump-Fun/src/",
     "Pump-Fun/agent-app/",
@@ -75,7 +84,6 @@
     "scripts/setup-spark.sh",
     "scripts/setup.sh",
     "scripts/start-services.sh",
-    "scripts/telegram-bridge.js",
     "scripts/test-inference-local.sh",
     "scripts/test-inference.sh",
     "scripts/walkthrough.sh",
@@ -92,10 +100,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/x402agent/NemoClaw.git"
+    "url": "git+https://github.com/x402agent/NemoClawd.git"
   },
   "homepage": "https://nemo.nanosolana.com",
   "bugs": {
-    "url": "https://github.com/x402agent/NemoClaw/issues"
+    "url": "https://github.com/x402agent/NemoClawd/issues"
   }
 }
